@@ -1,0 +1,30 @@
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.26.0
+scipy
+
+# 3D processing
+trimesh
+open3d
+
+# Geometry and transformations
+roma
+einops
+
+# Image processing
+opencv-python
+imageio[ffmpeg]
+
+# Model utilities
+huggingface-hub[torch]
+timm
+
+# ML utilities
+scikit-learn
+
+# 3D Gaussian Splatting
+gsplat>=1.4.0
+
+# Utilities
+tqdm
