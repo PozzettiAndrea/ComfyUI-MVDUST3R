@@ -15,6 +15,27 @@ sys.path.insert(0, str(current_dir / "vendor"))
 from mvdust3r.inference_global_optimization import inference_global_optimization
 
 
+def crop_to_multiple_of_16(img_tensor):
+    """
+    Crop image to nearest multiple of 16 (required for patch embedding).
+
+    Args:
+        img_tensor: [C, H, W] tensor
+
+    Returns:
+        Cropped tensor with dimensions divisible by 16
+    """
+    C, H, W = img_tensor.shape
+    new_H = (H // 16) * 16
+    new_W = (W // 16) * 16
+
+    # Center crop
+    start_H = (H - new_H) // 2
+    start_W = (W - new_W) // 2
+
+    return img_tensor[:, start_H:start_H + new_H, start_W:start_W + new_W]
+
+
 class MVDUST3RInference:
     """
     Perform multi-view 3D reconstruction using MVDUST3R.
@@ -92,17 +113,32 @@ class MVDUST3RInference:
             Tuple of (point_clouds, camera_poses, intrinsics, confidence)
         """
 
-        print(f"[MVDUST3R] Starting inference with {images.shape[0]} views")
+        num_views = images.shape[0]
+        variant = getattr(model, '_mvdust3r_variant', 'unknown')
+
+        # Validate view count based on model variant
+        if 'MVDp_s2' in variant:
+            if num_views < 4 or num_views > 12:
+                raise ValueError(f"MVDp_s2 model requires 4-12 views, got {num_views}")
+        elif 'MVDp_s1' in variant:
+            if num_views != 8:
+                raise ValueError(f"MVDp_s1 model requires exactly 8 views, got {num_views}")
+        elif 'MVD' in variant:
+            if num_views < 2:
+                raise ValueError(f"MVD model requires at least 2 views, got {num_views}")
+
+        print(f"[MVDUST3R] Starting inference with {num_views} views")
         print(f"[MVDUST3R] Image shape: {images.shape}")
         print(f"[MVDUST3R] Scene graph type: {scenegraph_type}")
         print(f"[MVDUST3R] Optimize poses: {optimize_poses}")
 
-        # Get device from model
+        # Get device and dtype from model
         device = next(model.parameters()).device
+        dtype = next(model.parameters()).dtype
 
         # Convert ComfyUI images to mvdust3r format
         # ComfyUI: [B, H, W, C] in [0, 1]
-        # mvdust3r: [B, C, H, W] in [-1, 1]
+        # mvdust3r: [C, H, W] in [-1, 1], dimensions must be divisible by 16
         img_tensors = []
         for i in range(images.shape[0]):
             img = images[i]  # [H, W, C]
@@ -110,11 +146,13 @@ class MVDUST3RInference:
             img = img * 2.0 - 1.0
             # Convert to [C, H, W]
             img = img.permute(2, 0, 1)
-            # Move to device
-            img = img.to(device)
+            # Crop to be divisible by 16
+            img = crop_to_multiple_of_16(img)
+            # Move to device and match model dtype
+            img = img.to(device=device, dtype=dtype)
             img_tensors.append(img)
 
-        print(f"[MVDUST3R] Converted {len(img_tensors)} images")
+        print(f"[MVDUST3R] Converted {len(img_tensors)} images to size {img_tensors[0].shape}")
 
         # Parse first_view_c2w if provided
         if first_view_c2w and first_view_c2w.strip():

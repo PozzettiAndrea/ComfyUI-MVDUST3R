@@ -36,7 +36,6 @@ _env/
 .DS_Store
 
 # Models
-models/
 *.pt
 *.pth
 *.ckpt

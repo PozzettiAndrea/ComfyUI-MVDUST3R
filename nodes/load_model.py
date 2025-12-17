@@ -7,13 +7,22 @@ import torch
 import os
 from pathlib import Path
 import folder_paths
+from huggingface_hub import hf_hub_download
 
 # Import from vendored mvdust3r
 import sys
 current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir / "vendor"))
 
-from mvdust3r.dust3r.model import AsymmetricCroCo3DStereoMultiView, load_model
+from mvdust3r.dust3r.model import AsymmetricCroCo3DStereoMultiView, load_model as load_model_from_checkpoint
+
+# Model mappings for HuggingFace downloads
+HF_MODEL_REPO = "Zhenggang/MV-DUSt3R"
+HF_MODELS = {
+    "MVDp_s2 (Best Quality)": "checkpoints/MVDp_s2.pth",
+    "MVDp_s1": "checkpoints/MVDp_s1.pth",
+    "MVD": "checkpoints/MVD.pth",
+}
 
 # Global model cache to avoid reloading
 _MODEL_CACHE = {}
@@ -30,12 +39,9 @@ class LoadMVDUST3RModel:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model_name": ([
-                    "naver/MV-DUSt3R-Plus",
-                    "naver/MV-DUSt3R",
-                ], {
-                    "default": "naver/MV-DUSt3R-Plus",
-                    "tooltip": "Select model variant from HuggingFace Hub"
+                "model_name": (list(HF_MODELS.keys()), {
+                    "default": "MVDp_s2 (Best Quality)",
+                    "tooltip": "Select model variant (downloaded from HuggingFace)"
                 }),
                 "device": (["cuda", "cpu"], {
                     "default": "cuda",
@@ -116,12 +122,16 @@ class LoadMVDUST3RModel:
             if os.path.isfile(checkpoint_path):
                 # Load from local checkpoint
                 print(f"[MVDUST3R] Loading from local checkpoint: {checkpoint_path}")
-                model = load_model(checkpoint_path, device=device, verbose=True)
+                model = load_model_from_checkpoint(checkpoint_path, device=device, verbose=True)
+            elif checkpoint_path in HF_MODELS:
+                # Download from HuggingFace Hub
+                hf_filename = HF_MODELS[checkpoint_path]
+                print(f"[MVDUST3R] Downloading {hf_filename} from {HF_MODEL_REPO}...")
+                local_path = hf_hub_download(repo_id=HF_MODEL_REPO, filename=hf_filename)
+                print(f"[MVDUST3R] Loading model from: {local_path}")
+                model = load_model_from_checkpoint(local_path, device=device, verbose=True)
             else:
-                # Load from HuggingFace Hub
-                print(f"[MVDUST3R] Downloading from HuggingFace: {checkpoint_path}")
-                model = AsymmetricCroCo3DStereoMultiView.from_pretrained(checkpoint_path)
-                model = model.to(device)
+                raise ValueError(f"Unknown model: {checkpoint_path}")
 
             # Set precision
             if precision == "float16":
@@ -132,6 +142,9 @@ class LoadMVDUST3RModel:
 
             # Set to eval mode
             model.eval()
+
+            # Store model variant for validation in inference
+            model._mvdust3r_variant = checkpoint_path
 
             # Cache the model
             _MODEL_CACHE[cache_key] = model

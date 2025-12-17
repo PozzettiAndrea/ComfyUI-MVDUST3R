@@ -11,7 +11,7 @@ import huggingface_hub
 from .utils.misc import fill_default_args, freeze_all_params, is_symmetrized, interleave, transpose_to_landscape
 from .heads import head_factory
 from dust3r.patch_embed import get_patch_embed
-from dust3r.losses import swap, swap_ref
+from dust3r.utils.swap import swap, swap_ref
 
 import dust3r.utils.path_to_croco
 from models.croco import CroCoNet
@@ -26,7 +26,7 @@ assert version.parse(hf_version_number) >= version.parse("0.22.0"), "Outdated hu
 def load_model(model_path, device, verbose=True):
     if verbose:
         print('... loading model from', model_path)
-    ckpt = torch.load(model_path, map_location='cpu')
+    ckpt = torch.load(model_path, map_location='cpu', weights_only=False)
     args = ckpt['args'].model.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
     if 'landscape_only' not in args:
         args = args[:-1] + ', landscape_only=False)'
@@ -106,6 +106,8 @@ class AsymmetricCroCo3DStereo (
 
     def set_downstream_head(self, output_mode, head_type, landscape_only, depth_mode, conf_mode, patch_size, img_size,
                             **kw):
+        if isinstance(img_size, int):
+            img_size = (img_size, img_size)
         assert img_size[0] % patch_size == 0 and img_size[1] % patch_size == 0, \
             f'{img_size=} must be multiple of {patch_size=}'
         self.output_mode = output_mode
@@ -239,6 +241,7 @@ class AsymmetricCroCo3DStereoMultiView (
                  sh_degree = 0,
                  pts_head_config = {},
                  n_ref = None,
+                 m_ref_flag = False,
                  **croco_kwargs):
         self.patch_embed_cls = patch_embed_cls
         self.croco_args = fill_default_args(croco_kwargs, super().__init__)
@@ -246,20 +249,25 @@ class AsymmetricCroCo3DStereoMultiView (
         # dust3r specific initialization
         self.pts_head_config = pts_head_config
         self.dec_blocks2 = deepcopy(self.dec_blocks)
+        self.dec_same_view_blocks = deepcopy(self.dec_blocks)
         self.GS = GS
         self.GS_skip = GS_skip
         self.sh_degree = sh_degree
+        # MVDp models with m_ref_flag=True require n_ref > 1, default to 4
+        if m_ref_flag and n_ref is None:
+            n_ref = 4
         self.n_ref = n_ref
+        self.m_ref_flag = m_ref_flag
         self.set_downstream_head(output_mode, head_type, landscape_only, depth_mode, conf_mode, **croco_kwargs)
         self.set_freeze(freeze)
 
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kw):
-        if os.path.isfile(pretrained_model_name_or_path): # here
+        if os.path.isfile(pretrained_model_name_or_path):
             return load_model(pretrained_model_name_or_path, device='cpu')
         else:
-            return super(AsymmetricCroCo3DStereo, cls).from_pretrained(pretrained_model_name_or_path, **kw)
+            return super(AsymmetricCroCo3DStereoMultiView, cls).from_pretrained(pretrained_model_name_or_path, **kw)
 
     def _set_patch_embed(self, img_size=224, patch_size=16, enc_embed_dim=768):
         self.patch_embed = get_patch_embed(self.patch_embed_cls, img_size, patch_size, enc_embed_dim)
@@ -288,6 +296,8 @@ class AsymmetricCroCo3DStereoMultiView (
 
     def set_downstream_head(self, output_mode, head_type, landscape_only, depth_mode, conf_mode, patch_size, img_size,
                             **kw):
+        if isinstance(img_size, int):
+            img_size = (img_size, img_size)
         assert img_size[0] % patch_size == 0 and img_size[1] % patch_size == 0, \
             f'{img_size=} must be multiple of {patch_size=}'
         self.output_mode = output_mode
@@ -460,17 +470,32 @@ class AsymmetricCroCo3DStereoMultiView (
 
     def forward(self, view1, view2s_all):
         # encode the two images --> B,S,D
+        # Handle both pairwise inference (view2s_all is a dict) and multi-view inference (view2s_all is a list)
+        if isinstance(view2s_all, dict):
+            view2s_all = [view2s_all]
+
         num_render_views = view2s_all[0].get("num_render_views", torch.Tensor([0]).long())[0].item()
         n_ref = view2s_all[0].get("n_ref", torch.Tensor([1]).long())[0].item()
         if self.n_ref is not None:
             n_ref = self.n_ref
-        assert self.m_ref_flag == False or (self.m_ref_flag == True and n_ref > 1), f"No. of reference views should be > 1 if m_ref_flag is True"
+
+        # For pairwise inference (only 1 view2), force n_ref=1 to use standard decoder
+        # This allows pairwise inference to work even when model was trained with m_ref_flag=True
+        n_views = 1 + len(view2s_all)
+        if n_views == 2:
+            n_ref = 1  # Force standard decoder for pairwise
+        elif n_ref > n_views:
+            n_ref = n_views  # Cap to available views
+
+        # Skip assertion for pairwise inference (n_views == 2) as it always uses n_ref=1
+        if n_views > 2:
+            assert self.m_ref_flag == False or (self.m_ref_flag == True and n_ref > 1), f"No. of reference views should be > 1 if m_ref_flag is True"
 
         if num_render_views:
             view2s, view2s_render = view2s_all[:-num_render_views], view2s_all[-num_render_views:]
         else:
             view2s, view2s_render = view2s_all, []
-        
+
         (shape1, shape2s), (feat1, feat2s), (pos1, pos2s) = self._encode_symmetrized(view1, view2s) # every view is dealt with the same param.
         
         # combine all ref images into object-centric representation
@@ -490,11 +515,13 @@ class AsymmetricCroCo3DStereoMultiView (
             view1_img = views_img[0]
             view2s_img = views_img[1:]
 
-            res1 = self._downstream_head(1, ([tok.float() for tok in dec1], view1_img), shape1)
-            res2s = [self._downstream_head(2, ([tok.float() for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
+            # Use model's native dtype instead of hardcoding float32
+            model_dtype = next(self.parameters()).dtype
+            res1 = self._downstream_head(1, ([tok.to(model_dtype) for tok in dec1], view1_img), shape1)
+            res2s = [self._downstream_head(2, ([tok.to(model_dtype) for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
             if self.GS:
-                res1_GS = self._downstream_head_GS(1, ([tok.float() for tok in dec1], view1_img), shape1)
-                res2s_GS = [self._downstream_head_GS(2, ([tok.float() for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
+                res1_GS = self._downstream_head_GS(1, ([tok.to(model_dtype) for tok in dec1], view1_img), shape1)
+                res2s_GS = [self._downstream_head_GS(2, ([tok.to(model_dtype) for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
                 res1 = {**res1, **res1_GS}
                 res2s_new = []
                 for (res2, res2_GS) in zip(res2s, res2s_GS):

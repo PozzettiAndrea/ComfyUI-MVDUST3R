@@ -11,7 +11,7 @@ import huggingface_hub
 from .utils.misc import fill_default_args, freeze_all_params, is_symmetrized, interleave, transpose_to_landscape
 from .heads import head_factory
 from dust3r.patch_embed import get_patch_embed
-from dust3r.losses import swap, swap_ref
+from dust3r.utils.swap import swap, swap_ref
 
 import dust3r.utils.path_to_croco
 from models.croco import CroCoNet
@@ -460,11 +460,26 @@ class AsymmetricCroCo3DStereoMultiView (
 
     def forward(self, view1, view2s_all):
         # encode the two images --> B,S,D
+        # Handle both pairwise inference (view2s_all is a dict) and multi-view inference (view2s_all is a list)
+        if isinstance(view2s_all, dict):
+            view2s_all = [view2s_all]
+
         num_render_views = view2s_all[0].get("num_render_views", torch.Tensor([0]).long())[0].item()
         n_ref = view2s_all[0].get("n_ref", torch.Tensor([1]).long())[0].item()
         if self.n_ref is not None:
             n_ref = self.n_ref
-        assert self.m_ref_flag == False or (self.m_ref_flag == True and n_ref > 1), f"No. of reference views should be > 1 if m_ref_flag is True"
+
+        # For pairwise inference (only 1 view2), force n_ref=1 to use standard decoder
+        # This allows pairwise inference to work even when model was trained with m_ref_flag=True
+        n_views = 1 + len(view2s_all)
+        if n_views == 2:
+            n_ref = 1  # Force standard decoder for pairwise
+        elif n_ref > n_views:
+            n_ref = n_views  # Cap to available views
+
+        # Skip assertion for pairwise inference (n_views == 2) as it always uses n_ref=1
+        if n_views > 2:
+            assert self.m_ref_flag == False or (self.m_ref_flag == True and n_ref > 1), f"No. of reference views should be > 1 if m_ref_flag is True"
 
         if num_render_views:
             view2s, view2s_render = view2s_all[:-num_render_views], view2s_all[-num_render_views:]
@@ -490,11 +505,13 @@ class AsymmetricCroCo3DStereoMultiView (
             view1_img = views_img[0]
             view2s_img = views_img[1:]
 
-            res1 = self._downstream_head(1, ([tok.float() for tok in dec1], view1_img), shape1)
-            res2s = [self._downstream_head(2, ([tok.float() for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
+            # Use model's native dtype instead of hardcoding float32
+            model_dtype = next(self.parameters()).dtype
+            res1 = self._downstream_head(1, ([tok.to(model_dtype) for tok in dec1], view1_img), shape1)
+            res2s = [self._downstream_head(2, ([tok.to(model_dtype) for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
             if self.GS:
-                res1_GS = self._downstream_head_GS(1, ([tok.float() for tok in dec1], view1_img), shape1)
-                res2s_GS = [self._downstream_head_GS(2, ([tok.float() for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
+                res1_GS = self._downstream_head_GS(1, ([tok.to(model_dtype) for tok in dec1], view1_img), shape1)
+                res2s_GS = [self._downstream_head_GS(2, ([tok.to(model_dtype) for tok in dec2], view2_img), shape2) for (dec2, shape2, view2_img) in zip(dec2s, shape2s, view2s_img)]
                 res1 = {**res1, **res1_GS}
                 res2s_new = []
                 for (res2, res2_GS) in zip(res2s, res2s_GS):

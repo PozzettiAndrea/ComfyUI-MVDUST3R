@@ -32,7 +32,10 @@ pl.ion()
 torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >= 1.12
 batch_size = 1
 
-from dust3r.pcd_render import pcd_render
+try:
+    from dust3r.pcd_render import pcd_render
+except ImportError:
+    pcd_render = None  # Optional: requires pytorch3d for visualization
 
 def loss_of_one_batch_go_mv(batch, model, criterion, device, symmetrize_batch=False, use_amp=False, ret=None):
     views = batch

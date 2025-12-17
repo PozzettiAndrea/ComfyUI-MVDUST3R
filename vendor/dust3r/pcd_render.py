@@ -12,35 +12,22 @@ import time
 
 # Util function for loading point clouds
 import numpy as np
+from pytorch3d.structures import Pointclouds
 
-# Make pytorch3d imports optional for inference-only usage
-try:
-    from pytorch3d.structures import Pointclouds
-    from pytorch3d.renderer import (
-        look_at_view_transform,
-        FoVOrthographicCameras,
-        PointsRasterizationSettings,
-        PointsRenderer,
-        PulsarPointsRenderer,
-        PointsRasterizer,
-        AlphaCompositor,
-        NormWeightedCompositor
-    )
-    PYTORCH3D_AVAILABLE = True
-except ImportError:
-    PYTORCH3D_AVAILABLE = False
-    Pointclouds = None
-    look_at_view_transform = None
-    FoVOrthographicCameras = None
-    PointsRasterizationSettings = None
-    PointsRenderer = None
-    PulsarPointsRenderer = None
-    PointsRasterizer = None
-    AlphaCompositor = None
-    NormWeightedCompositor = None
+# Data structures and functions for rendering
+from pytorch3d.structures import Pointclouds
+from pytorch3d.renderer import (
+    look_at_view_transform,
+    FoVOrthographicCameras, 
+    PointsRasterizationSettings,
+    PointsRenderer,
+    PulsarPointsRenderer,
+    PointsRasterizer,
+    AlphaCompositor,
+    NormWeightedCompositor
+)
 
-# Use dummy_io for non-internal builds
-if 'META_INTERNAL' not in os.environ or os.environ.get('META_INTERNAL') != "True":
+if 'META_INTERNAL' in os.environ.keys() and os.environ['META_INTERNAL'] == "False":
     from dust3r.dummy_io import *
 else:
     from meta_internal.io import *

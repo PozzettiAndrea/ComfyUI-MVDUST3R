@@ -5,17 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
-
-# Make pytorch3d imports optional for inference-only usage
-try:
-    from pytorch3d.ops import knn_points
-    from pytorch3d.transforms import so3_relative_angle
-    PYTORCH3D_AVAILABLE = True
-except ImportError:
-    PYTORCH3D_AVAILABLE = False
-    knn_points = None
-    so3_relative_angle = None
-
+from pytorch3d.ops import knn_points
 from dust3r.utils.geometry import xy_grid
 
 from dust3r.inference import get_pred_pts3d, find_opt_scaling
@@ -25,6 +15,7 @@ from dust3r.utils.geometry import get_joint_pointcloud_depth, get_joint_pointclo
 from torch.utils.data import default_collate
 
 import random
+from pytorch3d.transforms import so3_relative_angle
 
 def batched_all_pairs(B, N):
     # B, N = se3.shape[:2]
@@ -380,8 +371,6 @@ def umeyama_alignment(P1, P2, mask_): # [bs, N, 3], [bs, N, 3], [bs, N] all are 
     sigma: (bs, )
     t: (bs, 3)
     """
-    if not PYTORCH3D_AVAILABLE:
-        raise ImportError("pytorch3d is required for umeyama_alignment. Install with: pip install pytorch3d")
     from pytorch3d import ops
     ya = ops.corresponding_points_alignment
     R, T, s = ya(P1, P2, weights = mask_.float(), estimate_scale = True)
