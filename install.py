@@ -45,14 +45,60 @@ def parse_version(version_str):
     return tuple(result)
 
 
+def get_miropsota_wheel_spec(torch_version, cuda_version):
+    """
+    Get pytorch3d wheel spec for MiroPsota's pre-built wheels.
+
+    MiroPsota hosts wheels at: https://miropsota.github.io/torch_packages_builder
+    Format: pytorch3d==0.7.8+pt{torch_version}cu{cuda_short}
+
+    Supports wide range of PyTorch/CUDA combinations including latest versions.
+    """
+    if not torch_version or not cuda_version:
+        return None
+
+    # Parse CUDA version to short format: "12.8" -> "128", "12.4" -> "124", "11.8" -> "118"
+    cuda_parts = cuda_version.split('.')
+    cuda_short = f"{cuda_parts[0]}{cuda_parts[1]}" if len(cuda_parts) >= 2 else cuda_parts[0]
+
+    # Clean torch version (remove +cu128 suffix if present)
+    torch_clean = torch_version.split('+')[0]
+
+    # MiroPsota supports these CUDA versions
+    supported_cuda = ["128", "126", "124", "121", "118"]
+
+    # Find closest supported CUDA version
+    if cuda_short not in supported_cuda:
+        # Try to find closest match
+        cuda_major_minor = int(cuda_short)
+        for supported in supported_cuda:
+            if abs(int(supported) - cuda_major_minor) <= 2:
+                cuda_short = supported
+                break
+
+    # pytorch3d versions to try (newest first)
+    pytorch3d_versions = ["0.7.9", "0.7.8"]
+
+    # Generate wheel specs to try
+    wheel_specs = []
+    for p3d_ver in pytorch3d_versions:
+        # Exact match
+        wheel_specs.append(f"pytorch3d=={p3d_ver}+pt{torch_clean}cu{cuda_short}")
+
+    return wheel_specs
+
+
 def get_pytorch3d_wheel_url(torch_version, cuda_version, python_version):
     """
-    Construct pytorch3d wheel URL based on environment.
+    Construct pytorch3d wheel URL for official Facebook wheels (legacy fallback).
 
     PyTorch3D wheels are hosted at:
     https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/
 
     Format: py{pyver}_cu{cudaver}_pyt{torchver}/pytorch3d-{version}-cp{pyver}-cp{pyver}-linux_x86_64.whl
+
+    Note: Official wheels only support older PyTorch versions (up to ~2.1).
+    For newer versions, use MiroPsota wheels instead.
     """
     if not torch_version or not cuda_version:
         return None
@@ -66,21 +112,13 @@ def get_pytorch3d_wheel_url(torch_version, cuda_version, python_version):
     cuda_short = f"{cuda_parts[0]}{cuda_parts[1]}"
 
     # Known pytorch3d versions and their compatibility
-    # pytorch3d 0.7.8 supports up to PyTorch 2.5
-    # For newer PyTorch versions, we'll try building from source or using latest available
+    # Note: These are OLD versions - MiroPsota wheels are preferred for newer PyTorch
 
     base_url = "https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels"
 
     # Try exact match first, then fall back to compatible versions
     wheel_configs = [
         # (pytorch3d_version, torch_version_short, cuda_version_short)
-        ("0.7.8", "251", "124"),  # PyTorch 2.5.1, CUDA 12.4
-        ("0.7.8", "250", "124"),  # PyTorch 2.5.0, CUDA 12.4
-        ("0.7.8", "241", "121"),  # PyTorch 2.4.1, CUDA 12.1
-        ("0.7.8", "240", "121"),  # PyTorch 2.4.0, CUDA 12.1
-        ("0.7.7", "231", "121"),  # PyTorch 2.3.1, CUDA 12.1
-        ("0.7.7", "230", "121"),  # PyTorch 2.3.0, CUDA 12.1
-        ("0.7.6", "220", "121"),  # PyTorch 2.2.0, CUDA 12.1
         ("0.7.5", "210", "121"),  # PyTorch 2.1.0, CUDA 12.1
         ("0.7.5", "210", "118"),  # PyTorch 2.1.0, CUDA 11.8
         ("0.7.4", "200", "118"),  # PyTorch 2.0.0, CUDA 11.8
@@ -90,11 +128,8 @@ def get_pytorch3d_wheel_url(torch_version, cuda_version, python_version):
     # Find best matching wheel
     best_match = None
     for p3d_ver, torch_ver, cuda_ver in wheel_configs:
-        # Check if this wheel might be compatible
-        wheel_torch = parse_version(torch_ver[0] + "." + torch_ver[1] + "." + torch_ver[2] if len(torch_ver) == 3 else torch_ver[0] + "." + torch_ver[1:])
-
-        # Accept if torch major.minor matches or is close
-        if torch_parts[0] == int(torch_ver[0]) and abs(torch_parts[1] - int(torch_ver[1])) <= 1:
+        # Accept if torch major.minor matches
+        if torch_parts[0] == int(torch_ver[0]) and torch_parts[1] == int(torch_ver[1]):
             best_match = (p3d_ver, torch_ver, cuda_ver)
             break
 
@@ -137,6 +172,35 @@ def install_pytorch3d_from_source():
         return False
 
 
+def install_pytorch3d_from_miropsota(torch_version, cuda_version):
+    """
+    Try to install pytorch3d from MiroPsota's pre-built wheels.
+
+    MiroPsota maintains wheels for many PyTorch/CUDA combinations including latest versions.
+    Repository: https://github.com/MiroPsota/torch_packages_builder
+    """
+    wheel_specs = get_miropsota_wheel_spec(torch_version, cuda_version)
+    if not wheel_specs:
+        return False
+
+    miropsota_index = "https://miropsota.github.io/torch_packages_builder"
+
+    for wheel_spec in wheel_specs:
+        print(f"[MVDUST3R] Trying MiroPsota wheel: {wheel_spec}")
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install",
+                "--extra-index-url", miropsota_index,
+                wheel_spec
+            ], stderr=subprocess.DEVNULL)
+            print(f"[MVDUST3R] pytorch3d installed successfully from MiroPsota wheels!")
+            return True
+        except subprocess.CalledProcessError:
+            continue
+
+    return False
+
+
 def install_pytorch3d():
     """Install pytorch3d with automatic version detection."""
     print("\n" + "="*60)
@@ -165,34 +229,41 @@ def install_pytorch3d():
         print("[MVDUST3R] ERROR: PyTorch not installed. Please install PyTorch first.")
         return False
 
-    # Only Linux x86_64 has prebuilt wheels
+    # Strategy 1: Try MiroPsota wheels first (best support for modern PyTorch/CUDA)
+    if platform.system() == "Linux" and platform.machine() == "x86_64" and cuda_version:
+        print("[MVDUST3R] Trying MiroPsota pre-built wheels (recommended)...")
+        if install_pytorch3d_from_miropsota(torch_version, cuda_version):
+            return True
+        print("[MVDUST3R] MiroPsota wheels not available for this configuration.")
+
+    # Strategy 2: Try official Facebook wheels (older PyTorch versions only)
     if platform.system() == "Linux" and platform.machine() == "x86_64" and cuda_version:
         wheel_url = get_pytorch3d_wheel_url(torch_version, cuda_version, python_version)
 
         if wheel_url:
-            print(f"[MVDUST3R] Trying prebuilt wheel: {wheel_url}")
+            print(f"[MVDUST3R] Trying official wheel: {wheel_url}")
             try:
                 subprocess.check_call([
                     sys.executable, "-m", "pip", "install",
                     wheel_url
-                ])
-                print("[MVDUST3R] pytorch3d installed successfully from wheel!")
+                ], stderr=subprocess.DEVNULL)
+                print("[MVDUST3R] pytorch3d installed successfully from official wheel!")
                 return True
             except subprocess.CalledProcessError:
-                print("[MVDUST3R] Prebuilt wheel failed, trying alternatives...")
+                print("[MVDUST3R] Official wheel failed, trying alternatives...")
 
-    # Try pip install (might work for some configurations)
+    # Strategy 3: Try pip install (might work for some configurations)
     print("[MVDUST3R] Trying pip install pytorch3d...")
     try:
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", "pytorch3d"
-        ])
+        ], stderr=subprocess.DEVNULL)
         print("[MVDUST3R] pytorch3d installed successfully!")
         return True
     except subprocess.CalledProcessError:
         print("[MVDUST3R] pip install failed, trying from source...")
 
-    # Last resort: build from source
+    # Strategy 4: Last resort - build from source
     return install_pytorch3d_from_source()
 
 
