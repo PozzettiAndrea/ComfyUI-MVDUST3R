@@ -101,6 +101,32 @@ pip install -r requirements.txt
 **Outputs**:
 - `IMAGE`: Rendered frames (ComfyUI IMAGE tensor)
 
+## Example Data
+
+Sample images are included in `assets/examples/office_room/` for quick testing:
+
+```
+assets/examples/office_room/
+├── frame_01.png
+├── frame_02.png
+├── frame_03.png
+├── frame_04.png
+├── frame_05.png
+├── frame_06.png
+├── frame_07.png
+└── frame_08.png
+```
+
+These 8 frames are from the **TUM RGB-D Dataset** (freiburg1_room sequence) - a 49-second trajectory through a full office room with loop closure, perfect for testing multi-view reconstruction.
+
+### Data Attribution
+
+The example images are from the [TUM RGB-D Dataset](https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download):
+
+> J. Sturm, N. Engelhard, F. Endres, W. Burgard, D. Cremers.
+> **A Benchmark for the Evaluation of RGB-D SLAM Systems**.
+> In Proc. of the IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2012.
+
 ## Example Workflow
 
 ```
@@ -169,9 +195,10 @@ Conversion happens automatically inside the inference node.
 
 ## Credits
 
-- **MVDUST3R**: [Original Paper](https://arxiv.org/abs/2410.17504) by NAVER Labs Europe
+- **MVDUST3R**: [Original Paper](https://arxiv.org/abs/2412.06974) by Meta/Facebook Research
 - **DUSt3R**: Foundation work by [NAVER Labs](https://github.com/naver/dust3r)
 - **ComfyUI**: [ComfyUI](https://github.com/comfyanonymous/ComfyUI) by comfyanonymous
+- **Example Data**: [TUM RGB-D Dataset](https://cvg.cit.tum.de/data/datasets/rgbd-dataset) by TU Munich Computer Vision Group
 
 ## License
 

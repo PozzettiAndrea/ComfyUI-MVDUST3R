@@ -12,6 +12,7 @@ from .nodes.inference import MVDUST3RInference
 from .nodes.export_pointcloud import ExportPointCloud
 from .nodes.export_mesh import ExportMesh
 from .nodes.visualizer import MVDUST3DVisualizer
+from .nodes.blur_detection import BlurDetection
 
 # Node class mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
@@ -20,6 +21,7 @@ NODE_CLASS_MAPPINGS = {
     "ExportPointCloud": ExportPointCloud,
     "ExportMesh": ExportMesh,
     "MVDUST3DVisualizer": MVDUST3DVisualizer,
+    "BlurDetection": BlurDetection,
 }
 
 # Display names for nodes in ComfyUI UI
@@ -29,6 +31,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ExportPointCloud": "Export Point Cloud",
     "ExportMesh": "Export Mesh",
     "MVDUST3DVisualizer": "Visualize Point Cloud",
+    "BlurDetection": "Blur Detection",
 }
 
 # Web directory for UI extensions (if any)
