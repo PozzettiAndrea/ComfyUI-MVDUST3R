@@ -5,6 +5,7 @@ Performs multi-view 3D reconstruction
 
 import torch
 import numpy as np
+import gc
 from pathlib import Path
 import sys
 
@@ -183,6 +184,10 @@ class MVDUST3RInference:
             print(f"[MVDUST3R] Inference time: {t_inference:.2f}s")
             print(f"[MVDUST3R] Optimization time: {t_optimization:.2f}s")
             print(f"[MVDUST3R] Total time: {t_inference + t_optimization:.2f}s")
+
+            # Free GPU memory before proceeding
+            gc.collect()
+            torch.cuda.empty_cache()
 
             # Apply confidence thresholding
             filtered_pts_3d = []

@@ -13,6 +13,7 @@ import functools
 import trimesh
 import copy
 import time
+import gc
 from scipy.spatial.transform import Rotation
 
 import sys
@@ -381,10 +382,15 @@ def inference_global_optimization(model, device, silent, img_tensors, first_view
 
         # pcd_transformed = Rt(c2w, pcd_c)
         # vis_pcd.append(pcd_transformed)
-    
+
     # vis_pcd = torch.stack(vis_pcd, dim = 0).reshape(-1, 3)
     # vis_rgb = torch.cat([torch.from_numpy(rgb.reshape(-1, 3)).cuda() for rgb in rgbs], dim = 0)
     # pcd_render(vis_rgb, vis_pcd, tgt = "./all.mp4", normalize = True)
+
+    # Cleanup scene to free GPU memory
+    del scene
+    gc.collect()
+    torch.cuda.empty_cache()
 
     return output_pcd, all_c2w, intrinsics, conf, t[1] - t[0], t[2] - t[1]
 
