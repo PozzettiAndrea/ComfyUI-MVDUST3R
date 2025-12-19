@@ -16,16 +16,13 @@ import time
 import gc
 from scipy.spatial.transform import Rotation
 
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
-from dust3r.inference import inference
-from dust3r.model import AsymmetricCroCo3DStereo
-from dust3r.image_pairs import make_pairs
-from dust3r.utils.image import load_images, rgb
-from dust3r.utils.device import to_numpy
-from dust3r.viz import add_scene_cam, CAM_COLORS, OPENGL, pts3d_to_trimesh, cat_meshes
-from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
+from .dust3r.inference import inference
+from .dust3r.model import AsymmetricCroCo3DStereo
+from .dust3r.image_pairs import make_pairs
+from .dust3r.utils.image import load_images, rgb
+from .dust3r.utils.device import to_numpy
+from .dust3r.viz import add_scene_cam, CAM_COLORS, OPENGL, pts3d_to_trimesh, cat_meshes
+from .dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 
 import matplotlib.pyplot as pl
 pl.ion()
@@ -34,7 +31,7 @@ torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >=
 batch_size = 1
 
 try:
-    from dust3r.pcd_render import pcd_render
+    from .dust3r.pcd_render import pcd_render
 except ImportError:
     pcd_render = None  # Optional: requires pytorch3d for visualization
 

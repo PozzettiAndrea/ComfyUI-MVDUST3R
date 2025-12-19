@@ -6,7 +6,7 @@
 # --------------------------------------------------------
 import torch.nn as nn
 import torch.nn.functional as F
-from dust3r.heads.postprocess import postprocess
+from .postprocess import postprocess
 import numpy as np
 import torch
 import math

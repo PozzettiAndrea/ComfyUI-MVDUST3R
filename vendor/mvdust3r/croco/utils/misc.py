@@ -25,7 +25,7 @@ import torch.distributed as dist
 from torch import inf
 
 if 'META_INTERNAL' in os.environ.keys() and os.environ['META_INTERNAL'] == "False":
-    from dust3r.dummy_io import *
+    from ...dust3r.dummy_io import *
 else:
     from meta_internal.io import *
 

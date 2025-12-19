@@ -11,11 +11,11 @@ import numpy as np
 import random
 import h5py
 
-from dust3r.datasets.base.base_stereo_view_dataset import BaseStereoViewDataset
-from dust3r.utils.image import imread_cv2
+from .base.base_stereo_view_dataset import BaseStereoViewDataset
+from ..utils.image import imread_cv2
 
 if 'META_INTERNAL' in os.environ.keys() and os.environ['META_INTERNAL'] == "False":
-    from dust3r.dummy_io import *
+    from ..dummy_io import *
 else:
     from meta_internal.io import *
     

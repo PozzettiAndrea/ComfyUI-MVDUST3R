@@ -16,11 +16,11 @@ except ImportError:
     knn_points = None
     so3_relative_angle = None
 
-from dust3r.utils.geometry import xy_grid
+from .utils.geometry import xy_grid
 
-from dust3r.inference import get_pred_pts3d, find_opt_scaling
-from dust3r.utils.geometry import inv, geotrf, normalize_pointcloud, normalize_pointclouds
-from dust3r.utils.geometry import get_joint_pointcloud_depth, get_joint_pointcloud_center_scale, get_joint_pointcloud_depths, get_joint_pointcloud_center_scales
+from .inference import get_pred_pts3d, find_opt_scaling
+from .utils.geometry import inv, geotrf, normalize_pointcloud, normalize_pointclouds
+from .utils.geometry import get_joint_pointcloud_depth, get_joint_pointcloud_center_scale, get_joint_pointcloud_depths, get_joint_pointcloud_center_scales
 
 from torch.utils.data import default_collate
 
@@ -1085,7 +1085,7 @@ class GSRenderLoss (Criterion, MultiLoss):
         self.local_loss_coeff = local_loss_coeff
         self.lap_loss_coeff = lap_loss_coeff
 
-        from dust3r.gs import GaussianRenderer
+        from .gs import GaussianRenderer
         self.gs_renderer = GaussianRenderer()
 
 

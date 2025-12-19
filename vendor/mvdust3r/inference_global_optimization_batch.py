@@ -21,29 +21,25 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >= 1.12
 
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
 if 'META_INTERNAL' in os.environ.keys() and os.environ['META_INTERNAL'] == "False":
     generate_html = None
-    from dust3r.dummy_io import *
+    from .dust3r.dummy_io import *
 else:
     from meta_internal.io import *
     from meta_internal.html_gen.run_model_doctor import generate_html
 
-from dust3r.model import AsymmetricCroCo3DStereo, AsymmetricCroCo3DStereoMultiView, inf 
-import dust3r.utils.path_to_croco  # noqa: F401
-from dust3r.datasets import get_data_loader  # noqa
-from dust3r.losses import *  # noqa: F401, needed when loading the model
-from dust3r.inference import loss_of_one_batch # noqa
-from inference_global_optimization import loss_of_one_batch_go_mv  # noqa
-from dust3r.pcd_render import pcd_render, save_image_manifold, save_video_combined
-from dust3r.gs import gs_render
-from dust3r.utils.geometry import inv, geotrf
+from .dust3r.model import AsymmetricCroCo3DStereo, AsymmetricCroCo3DStereoMultiView, inf
+from .dust3r.utils import path_to_croco  # noqa: F401
+from .dust3r.datasets import get_data_loader  # noqa
+from .dust3r.losses import *  # noqa: F401, needed when loading the model
+from .dust3r.inference import loss_of_one_batch # noqa
+from .inference_global_optimization import loss_of_one_batch_go_mv  # noqa
+from .dust3r.pcd_render import pcd_render, save_image_manifold, save_video_combined
+from .dust3r.gs import gs_render
+from .dust3r.utils.geometry import inv, geotrf
 
-import dust3r.utils.path_to_croco  # noqa: F401
-import croco.utils.misc as misc  # noqa
-from croco.utils.misc import NativeScalerWithGradNormCount as NativeScaler  # noqa
+from .croco.utils import misc  # noqa
+from .croco.utils.misc import NativeScalerWithGradNormCount as NativeScaler  # noqa
 
 def get_args_parser():
     parser = argparse.ArgumentParser('DUST3R training', add_help=False)

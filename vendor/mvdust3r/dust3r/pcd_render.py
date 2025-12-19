@@ -41,7 +41,7 @@ except ImportError:
 
 # Use dummy_io for non-internal builds
 if 'META_INTERNAL' not in os.environ or os.environ.get('META_INTERNAL') != "True":
-    from dust3r.dummy_io import *
+    from .dummy_io import *
 else:
     from meta_internal.io import *
 

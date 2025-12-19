@@ -9,9 +9,9 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import torch
 
-from dust3r.utils.geometry import geotrf, get_med_dist_between_poses
-from dust3r.utils.device import to_numpy
-from dust3r.utils.image import rgb
+from .utils.geometry import geotrf, get_med_dist_between_poses
+from .utils.device import to_numpy
+from .utils.image import rgb
 
 try:
     import trimesh

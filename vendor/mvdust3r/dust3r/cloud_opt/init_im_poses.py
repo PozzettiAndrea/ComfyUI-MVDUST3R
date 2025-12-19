@@ -13,12 +13,12 @@ import cv2
 import roma
 from tqdm import tqdm
 
-from dust3r.utils.geometry import geotrf, inv, get_med_dist_between_poses
-from dust3r.post_process import estimate_focal_knowing_depth
-from dust3r.viz import to_numpy
+from ..utils.geometry import geotrf, inv, get_med_dist_between_poses
+from ..post_process import estimate_focal_knowing_depth
+from ..viz import to_numpy
 
-from dust3r.cloud_opt.commons import edge_str, i_j_ij, compute_edge_scores
-from dust3r.utils.geometry import xy_grid
+from .commons import edge_str, i_j_ij, compute_edge_scores
+from ..utils.geometry import xy_grid
 
 
 @torch.no_grad()

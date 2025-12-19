@@ -10,7 +10,7 @@ License: MIT
 from .nodes.load_model import LoadMVDUST3RModel
 from .nodes.inference import MVDUST3RInference
 from .nodes.export_pointcloud import ExportPointCloud
-from .nodes.export_mesh import ExportMesh
+from .nodes.export_mesh import ExportMesh, MVDUST3RGridMesh
 from .nodes.visualizer import MVDUST3DVisualizer
 from .nodes.blur_detection import BlurDetection
 
@@ -20,6 +20,7 @@ NODE_CLASS_MAPPINGS = {
     "MVDUST3RInference": MVDUST3RInference,
     "ExportPointCloud": ExportPointCloud,
     "ExportMesh": ExportMesh,
+    "MVDUST3RGridMesh": MVDUST3RGridMesh,
     "MVDUST3DVisualizer": MVDUST3DVisualizer,
     "BlurDetection": BlurDetection,
 }
@@ -29,7 +30,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoadMVDUST3RModel": "Load MVDUST3R Model",
     "MVDUST3RInference": "MVDUST3R Inference",
     "ExportPointCloud": "Export Point Cloud",
-    "ExportMesh": "Export Mesh",
+    "ExportMesh": "Export Mesh (Poisson)",
+    "MVDUST3RGridMesh": "MVDUST3R Grid Mesh",
     "MVDUST3DVisualizer": "Visualize Point Cloud",
     "BlurDetection": "Blur Detection",
 }

@@ -201,11 +201,211 @@ class ExportMesh:
         return (str(output_path),)
 
 
+def pts3d_to_trimesh(img, pts3d, valid=None):
+    """
+    Convert structured point cloud to mesh by connecting adjacent pixels.
+    Based on MVDUST3R viz.py pts3d_to_trimesh.
+
+    Creates double-sided faces (4 triangles per quad) to avoid face culling issues.
+
+    Args:
+        img: [H, W, 3] RGB image (0-1 float or 0-255 uint8)
+        pts3d: [H, W, 3] point cloud
+        valid: [H, W] boolean mask (optional)
+
+    Returns:
+        trimesh.Trimesh object
+    """
+    import trimesh
+
+    H, W, _ = pts3d.shape
+
+    vertices = pts3d.reshape(-1, 3)
+
+    # Make quads from adjacent pixels, each quad = 4 triangles (double-sided)
+    idx = np.arange(len(vertices)).reshape(H, W)
+    idx1 = idx[:-1, :-1].ravel()  # top-left
+    idx2 = idx[:-1, +1:].ravel()  # top-right
+    idx3 = idx[+1:, :-1].ravel()  # bottom-left
+    idx4 = idx[+1:, +1:].ravel()  # bottom-right
+
+    # Four triangles per quad (double-sided to avoid culling)
+    faces = np.concatenate([
+        np.c_[idx1, idx2, idx3],
+        np.c_[idx3, idx2, idx1],  # backward
+        np.c_[idx2, idx3, idx4],
+        np.c_[idx4, idx3, idx2],  # backward
+    ], axis=0)
+
+    # Face colors from image pixels (4x for double-sided faces)
+    img_normalized = img.astype(np.float32)
+    if img_normalized.max() > 1.0:
+        img_normalized = img_normalized / 255.0
+
+    face_colors = np.concatenate([
+        img_normalized[:-1, :-1].reshape(-1, 3),
+        img_normalized[:-1, :-1].reshape(-1, 3),  # same color for backward face
+        img_normalized[+1:, +1:].reshape(-1, 3),
+        img_normalized[+1:, +1:].reshape(-1, 3),  # same color for backward face
+    ], axis=0)
+
+    # Convert to RGBA (0-255)
+    face_colors_rgba = np.zeros((len(face_colors), 4), dtype=np.uint8)
+    face_colors_rgba[:, :3] = (face_colors * 255).astype(np.uint8)
+    face_colors_rgba[:, 3] = 255
+
+    # Apply validity mask if provided
+    if valid is not None:
+        valid_flat = valid.ravel()
+        # A face is valid if all its vertices are valid
+        valid_faces_1 = valid_flat[idx1] & valid_flat[idx2] & valid_flat[idx3]
+        valid_faces_2 = valid_flat[idx2] & valid_flat[idx3] & valid_flat[idx4]
+        # Duplicate for backward faces
+        valid_faces = np.concatenate([valid_faces_1, valid_faces_1, valid_faces_2, valid_faces_2])
+        faces = faces[valid_faces]
+        face_colors_rgba = face_colors_rgba[valid_faces]
+
+    mesh = trimesh.Trimesh(
+        vertices=vertices,
+        faces=faces,
+        face_colors=face_colors_rgba,
+        process=False
+    )
+
+    return mesh
+
+
+class MVDUST3RGridMesh:
+    """
+    Convert MVDUST3R point clouds to mesh using grid-based triangulation.
+
+    Uses the structured nature of MVDUST3R output (each view is H×W grid)
+    to create meshes by connecting adjacent pixels as triangles.
+    Much faster than Poisson and preserves colors from input images.
+    Creates double-sided faces to avoid culling issues.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "point_clouds": ("POINT_CLOUDS", {
+                    "tooltip": "Point cloud data from MVDUST3RInference"
+                }),
+                "images": ("IMAGE", {
+                    "tooltip": "Original input images (for colors)"
+                }),
+                "confidence": ("CONFIDENCE", {
+                    "tooltip": "Confidence maps from MVDUST3RInference"
+                }),
+                "confidence_threshold": ("FLOAT", {
+                    "default": 3.0,
+                    "min": 0.0,
+                    "max": 50.0,
+                    "step": 1.0,
+                    "tooltip": "Filter lowest N% confidence points (0 = keep all, 3 = remove bottom 3%)"
+                }),
+                "merge_views": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Merge all views into single mesh"
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("TRIMESH",)
+    RETURN_NAMES = ("mesh",)
+    FUNCTION = "create_mesh"
+    CATEGORY = "MVDUST3R"
+    DESCRIPTION = "Fast grid-based mesh from MVDUST3R (uses image colors)"
+
+    def create_mesh(self, point_clouds, images, confidence,
+                    confidence_threshold, merge_views):
+        """
+        Create mesh from MVDUST3R structured point clouds.
+        """
+        import trimesh
+        from PIL import Image
+
+        pts_3d = point_clouds['pts_3d']
+        conf = confidence
+
+        num_views = len(pts_3d)
+        print(f"[MVDUST3R GridMesh] Processing {num_views} views")
+
+        # Get dimensions from first point cloud
+        sample_pts = pts_3d[0]
+        if isinstance(sample_pts, torch.Tensor):
+            sample_pts = sample_pts.detach().cpu().numpy()
+        target_h, target_w = sample_pts.shape[:2]
+        print(f"[MVDUST3R GridMesh] Point cloud size: {target_h}x{target_w}")
+
+        meshes = []
+
+        for i in range(num_views):
+            # Get point cloud
+            pts = pts_3d[i]
+            if isinstance(pts, torch.Tensor):
+                pts = pts.detach().cpu().numpy()
+
+            # Get confidence map
+            conf_map = conf[i]
+            if isinstance(conf_map, torch.Tensor):
+                conf_map = conf_map.detach().cpu().numpy()
+
+            # Debug: print confidence range for first view
+            if i == 0:
+                print(f"[MVDUST3R GridMesh] Confidence range: {conf_map.min():.2f} - {conf_map.max():.2f}")
+
+            # Get and resize image to match point cloud dimensions
+            img = images[i].detach().cpu().numpy()  # [H, W, 3]
+
+            # Resize image to match pts3d dimensions
+            img_pil = Image.fromarray((img * 255).astype(np.uint8))
+            img_pil = img_pil.resize((target_w, target_h), Image.BILINEAR)
+            img_resized = np.array(img_pil).astype(np.float32) / 255.0
+
+            # Create validity mask from confidence (use percentile-based threshold)
+            # confidence_threshold is treated as a percentile (0-100) to filter lowest confidence points
+            if confidence_threshold > 0:
+                threshold_value = np.percentile(conf_map, confidence_threshold)
+                valid = conf_map >= threshold_value
+            else:
+                valid = np.ones(conf_map.shape, dtype=bool)
+
+            # Count valid pixels
+            valid_count = valid.sum()
+            total_count = valid.size
+            print(f"[MVDUST3R GridMesh] View {i}: {valid_count}/{total_count} valid ({100*valid_count/total_count:.1f}%)")
+
+            # Create mesh for this view
+            mesh = pts3d_to_trimesh(img_resized, pts, valid=valid)
+
+            if len(mesh.faces) > 0:
+                meshes.append(mesh)
+                print(f"[MVDUST3R GridMesh] View {i}: {len(mesh.vertices):,} verts, {len(mesh.faces):,} faces")
+            else:
+                print(f"[MVDUST3R GridMesh] View {i}: No valid faces")
+
+        if len(meshes) == 0:
+            raise ValueError("No valid meshes. Try lowering confidence threshold.")
+
+        # Merge or return first mesh
+        if merge_views and len(meshes) > 1:
+            print(f"[MVDUST3R GridMesh] Merging {len(meshes)} meshes...")
+            combined = trimesh.util.concatenate(meshes)
+            print(f"[MVDUST3R GridMesh] Final: {len(combined.vertices):,} verts, {len(combined.faces):,} faces")
+            return (combined,)
+        else:
+            return (meshes[0],)
+
+
 # Node registration
 NODE_CLASS_MAPPINGS = {
-    "ExportMesh": ExportMesh
+    "ExportMesh": ExportMesh,
+    "MVDUST3RGridMesh": MVDUST3RGridMesh,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ExportMesh": "Export Mesh"
+    "ExportMesh": "Export Mesh (Poisson)",
+    "MVDUST3RGridMesh": "MVDUST3R Grid Mesh",
 }

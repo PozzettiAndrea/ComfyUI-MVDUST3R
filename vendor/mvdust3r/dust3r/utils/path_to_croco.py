@@ -8,6 +8,7 @@
 import sys
 import os.path as path
 HERE_PATH = path.normpath(path.dirname(__file__))
+# Point to unified croco folder at vendor/mvdust3r/croco
 CROCO_REPO_PATH = path.normpath(path.join(HERE_PATH, '../../croco'))
 CROCO_MODELS_PATH = path.join(CROCO_REPO_PATH, 'models')
 # check the presence of models directory in repo to be sure its cloned

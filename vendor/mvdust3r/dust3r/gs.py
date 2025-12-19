@@ -9,14 +9,11 @@ import imageio
 import os
 
 if 'META_INTERNAL' in os.environ.keys() and os.environ['META_INTERNAL'] == "False":
-    from dust3r.dummy_io import *
+    from .dummy_io import *
 else:
     from meta_internal.io import *
 
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
-from dust3r.pcd_render import spiral_cam_gen, save_video_combined
+from .pcd_render import spiral_cam_gen, save_video_combined
 
 from gsplat.rendering import rasterization
 from gsplat.rendering import spherical_harmonics

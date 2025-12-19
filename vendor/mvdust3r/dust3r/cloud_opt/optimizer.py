@@ -8,9 +8,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from dust3r.cloud_opt.base_opt import BasePCOptimizer
-from dust3r.utils.geometry import xy_grid, geotrf
-from dust3r.utils.device import to_cpu, to_numpy
+from .base_opt import BasePCOptimizer
+from ..utils.geometry import xy_grid, geotrf
+from ..utils.device import to_cpu, to_numpy
 
 
 class PointCloudOptimizer(BasePCOptimizer):
