@@ -310,6 +310,19 @@ class MVDUST3RGridMesh:
                     "tooltip": "Merge all views into single mesh"
                 }),
             },
+            "optional": {
+                "decimate": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Reduce mesh complexity to target face count"
+                }),
+                "target_faces": ("INT", {
+                    "default": 200000,
+                    "min": 1000,
+                    "max": 10000000,
+                    "step": 10000,
+                    "tooltip": "Target number of faces after decimation"
+                }),
+            },
         }
 
     RETURN_TYPES = ("TRIMESH",)
@@ -319,7 +332,7 @@ class MVDUST3RGridMesh:
     DESCRIPTION = "Fast grid-based mesh from MVDUST3R (uses image colors)"
 
     def create_mesh(self, point_clouds, images, confidence,
-                    confidence_threshold, merge_views):
+                    confidence_threshold, merge_views, decimate=True, target_faces=200000):
         """
         Create mesh from MVDUST3R structured point clouds.
         """
@@ -392,11 +405,19 @@ class MVDUST3RGridMesh:
         # Merge or return first mesh
         if merge_views and len(meshes) > 1:
             print(f"[MVDUST3R GridMesh] Merging {len(meshes)} meshes...")
-            combined = trimesh.util.concatenate(meshes)
-            print(f"[MVDUST3R GridMesh] Final: {len(combined.vertices):,} verts, {len(combined.faces):,} faces")
-            return (combined,)
+            final_mesh = trimesh.util.concatenate(meshes)
         else:
-            return (meshes[0],)
+            final_mesh = meshes[0]
+
+        print(f"[MVDUST3R GridMesh] Mesh: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
+
+        # Apply decimation if enabled and needed
+        if decimate and target_faces < len(final_mesh.faces):
+            print(f"[MVDUST3R GridMesh] Decimating to ~{target_faces:,} faces...")
+            final_mesh = final_mesh.simplify_quadric_decimation(face_count=target_faces)
+            print(f"[MVDUST3R GridMesh] After decimation: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
+
+        return (final_mesh,)
 
 
 # Node registration

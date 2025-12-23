@@ -1,157 +1,121 @@
 {
-  "last_node_id": 6,
-  "last_link_id": 5,
+  "id": "50e686ca-1883-4962-985a-70e9441e25ff",
+  "revision": 0,
+  "last_node_id": 22,
+  "last_link_id": 38,
   "nodes": [
     {
-      "id": 1,
-      "type": "LoadImage",
-      "pos": [50, 50],
-      "size": [315, 314],
+      "id": 7,
+      "type": "VHS_LoadImagesPath",
+      "pos": [
+        -178.97542317708331,
+        -61.013861762152736
+      ],
+      "size": [
+        252.58984375,
+        597.1595934139784
+      ],
       "flags": {},
       "order": 0,
       "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        }
+      ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": [1],
-          "slot_index": 0
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "LoadImage"
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "3234937ff5f3ca19068aaba5042771514de2429d",
+        "Node name for S&R": "VHS_LoadImagesPath",
+        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
       },
-      "widgets_values": [
-        "example_multiview.png",
-        "image"
-      ]
+      "widgets_values": {
+        "directory": "input/mv/",
+        "image_load_cap": 0,
+        "skip_first_images": 0,
+        "select_every_nth": 1,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "image_load_cap": 0,
+            "skip_first_images": 0,
+            "select_every_nth": 1,
+            "filename": "input/mv/",
+            "type": "path",
+            "format": "folder"
+          }
+        }
+      }
     },
     {
-      "id": 2,
+      "id": 8,
       "type": "LoadMVDUST3RModel",
-      "pos": [50, 400],
-      "size": [315, 150],
+      "pos": [
+        130.8389479709202,
+        405.0203651801216
+      ],
+      "size": [
+        274.126953125,
+        106
+      ],
       "flags": {},
       "order": 1,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "model",
           "type": "MVDUST3R_MODEL",
-          "links": [2],
-          "slot_index": 0
+          "links": [
+            29
+          ]
         }
       ],
       "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
         "Node name for S&R": "LoadMVDUST3RModel"
       },
       "widgets_values": [
-        "naver/MV-DUSt3R-Plus",
+        "MVDp_s2 (Best Quality)",
         "cuda",
-        "auto",
-        ""
-      ]
-    },
-    {
-      "id": 3,
-      "type": "MVDUST3RInference",
-      "pos": [400, 50],
-      "size": [315, 250],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MVDUST3R_MODEL",
-          "link": 2
-        },
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "point_clouds",
-          "type": "POINT_CLOUDS",
-          "links": [3, 4],
-          "slot_index": 0
-        },
-        {
-          "name": "camera_poses",
-          "type": "CAMERA_POSES",
-          "links": [],
-          "slot_index": 1
-        },
-        {
-          "name": "intrinsics",
-          "type": "INTRINSICS",
-          "links": [],
-          "slot_index": 2
-        },
-        {
-          "name": "confidence",
-          "type": "CONFIDENCE",
-          "links": [5],
-          "slot_index": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "MVDUST3RInference"
-      },
-      "widgets_values": [
-        "complete",
-        true,
-        300,
-        1.0,
         ""
       ]
     },
     {
       "id": 4,
       "type": "ExportPointCloud",
-      "pos": [750, 50],
-      "size": [315, 200],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "point_clouds",
-          "type": "POINT_CLOUDS",
-          "link": 3
-        },
-        {
-          "name": "confidence",
-          "type": "CONFIDENCE",
-          "link": 5
-        }
+      "pos": [
+        888.898642674425,
+        30.697663062879826
       ],
-      "outputs": [
-        {
-          "name": "filepath",
-          "type": "STRING",
-          "links": [],
-          "slot_index": 0
-        }
+      "size": [
+        315,
+        200
       ],
-      "properties": {
-        "Node name for S&R": "ExportPointCloud"
-      },
-      "widgets_values": [
-        "pointcloud",
-        "ply",
-        true,
-        1.0
-      ]
-    },
-    {
-      "id": 5,
-      "type": "ExportMesh",
-      "pos": [750, 300],
-      "size": [315, 250],
       "flags": {},
       "order": 4,
       "mode": 0,
@@ -159,47 +123,320 @@
         {
           "name": "point_clouds",
           "type": "POINT_CLOUDS",
-          "link": 4
+          "link": 31
         },
         {
           "name": "confidence",
           "type": "CONFIDENCE",
-          "link": null
+          "link": 32
         }
       ],
       "outputs": [
         {
           "name": "filepath",
           "type": "STRING",
-          "links": [],
-          "slot_index": 0
+          "slot_index": 0,
+          "links": []
         }
       ],
       "properties": {
-        "Node name for S&R": "ExportMesh"
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "ExportPointCloud"
       },
       "widgets_values": [
-        "mesh",
-        "obj",
-        "poisson",
-        1.0,
+        "pointcloud",
+        "ply",
         true,
-        9
+        1
+      ]
+    },
+    {
+      "id": 20,
+      "type": "MVDUST3RInference",
+      "pos": [
+        508.55629897086453,
+        34.93381760789447
+      ],
+      "size": [
+        286.4609375,
+        166
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MVDUST3R_MODEL",
+          "link": 29
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "point_clouds",
+          "type": "POINT_CLOUDS",
+          "links": [
+            31,
+            35
+          ]
+        },
+        {
+          "name": "camera_poses",
+          "type": "CAMERA_POSES",
+          "links": null
+        },
+        {
+          "name": "intrinsics",
+          "type": "INTRINSICS",
+          "links": null
+        },
+        {
+          "name": "confidence",
+          "type": "CONFIDENCE",
+          "links": [
+            32,
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "MVDUST3RInference"
+      },
+      "widgets_values": [
+        3,
+        true,
+        95
+      ]
+    },
+    {
+      "id": 15,
+      "type": "PrepareImages",
+      "pos": [
+        161.21256365353617,
+        -138.60594410087265
+      ],
+      "size": [
+        184.095703125,
+        26
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prepared_images",
+          "type": "IMAGE",
+          "links": [
+            30,
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "PrepareImages"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 22,
+      "type": "MVDUST3RGridMesh",
+      "pos": [
+        894.4033281002514,
+        389.95631172950453
+      ],
+      "size": [
+        286.4609375,
+        170
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "point_clouds",
+          "type": "POINT_CLOUDS",
+          "link": 35
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        },
+        {
+          "name": "confidence",
+          "type": "CONFIDENCE",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mesh",
+          "type": "TRIMESH",
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "MVDUST3RGridMesh"
+      },
+      "widgets_values": [
+        3,
+        true,
+        200000
+      ]
+    },
+    {
+      "id": 21,
+      "type": "GeomPackPreviewMeshVTK",
+      "pos": [
+        1435.6705562903544,
+        118.28465916874146
+      ],
+      "size": [
+        512,
+        722
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "trimesh",
+          "shape": 7,
+          "type": "TRIMESH",
+          "link": 38
+        },
+        {
+          "name": "voxelgrid",
+          "shape": 7,
+          "type": "VOXELGRID",
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfyui-geometrypack",
+        "ver": "3a9f0d8bd0f057cb1fd7d7f022765c6d9c86aec6",
+        "Node name for S&R": "GeomPackPreviewMeshVTK"
+      },
+      "widgets_values": [
+        "fields",
+        ""
       ]
     }
   ],
   "links": [
-    [1, 1, 0, 3, 1, "IMAGE"],
-    [2, 2, 0, 3, 0, "MVDUST3R_MODEL"],
-    [3, 3, 0, 4, 0, "POINT_CLOUDS"],
-    [4, 3, 0, 5, 0, "POINT_CLOUDS"],
-    [5, 3, 3, 4, 1, "CONFIDENCE"]
+    [
+      12,
+      7,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      8,
+      0,
+      20,
+      0,
+      "MVDUST3R_MODEL"
+    ],
+    [
+      30,
+      15,
+      0,
+      20,
+      1,
+      "IMAGE"
+    ],
+    [
+      31,
+      20,
+      0,
+      4,
+      0,
+      "POINT_CLOUDS"
+    ],
+    [
+      32,
+      20,
+      3,
+      4,
+      1,
+      "CONFIDENCE"
+    ],
+    [
+      35,
+      20,
+      0,
+      22,
+      0,
+      "POINT_CLOUDS"
+    ],
+    [
+      36,
+      20,
+      3,
+      22,
+      2,
+      "CONFIDENCE"
+    ],
+    [
+      37,
+      15,
+      0,
+      22,
+      1,
+      "IMAGE"
+    ],
+    [
+      38,
+      22,
+      0,
+      21,
+      0,
+      "TRIMESH"
+    ]
   ],
   "groups": [],
   "config": {},
   "extra": {
+    "ds": {
+      "scale": 0.5310439743098958,
+      "offset": [
+        516.5008855968587,
+        686.6964985447199
+      ]
+    },
+    "workflowRendererVersion": "LG",
     "workflow_name": "MVDUST3R Basic Reconstruction",
-    "workflow_description": "Basic multi-view 3D reconstruction workflow using MVDUST3R. Load multiple view images, run reconstruction, and export both point cloud and mesh."
+    "workflow_description": "Basic multi-view 3D reconstruction workflow using MVDUST3R. Load multiple view images, run reconstruction, and export both point cloud and mesh.",
+    "frontendVersion": "1.34.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
   },
   "version": 0.4
 }

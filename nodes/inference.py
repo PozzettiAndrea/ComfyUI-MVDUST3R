@@ -21,52 +21,10 @@ from mvdust3r.dust3r.losses import calibrate_camera_pnpransac, estimate_focal_kn
 from mvdust3r.dust3r.utils.device import to_numpy
 
 
-def resize_to_target(img_tensor, target_size=512):
-    """
-    Resize image so shortest side equals target_size, maintaining aspect ratio.
-    """
-    C, H, W = img_tensor.shape
-
-    if H <= target_size and W <= target_size:
-        return img_tensor
-
-    if H < W:
-        scale = target_size / H
-        new_H = target_size
-        new_W = int(W * scale)
-    else:
-        scale = target_size / W
-        new_W = target_size
-        new_H = int(H * scale)
-
-    img_resized = F.interpolate(
-        img_tensor.unsqueeze(0),
-        size=(new_H, new_W),
-        mode='bilinear',
-        align_corners=False
-    ).squeeze(0)
-
-    return img_resized
-
-
-def crop_to_multiple_of_16(img_tensor):
-    """
-    Crop image to nearest multiple of 16 (required for patch embedding).
-    """
-    C, H, W = img_tensor.shape
-    new_H = (H // 16) * 16
-    new_W = (W // 16) * 16
-
-    start_H = (H - new_H) // 2
-    start_W = (W - new_W) // 2
-
-    return img_tensor[:, start_H:start_H + new_H, start_W:start_W + new_W]
-
-
-def process_mvdust3r_output(output, min_conf_thr=3.0, device='cuda'):
+def process_mvdust3r_output(output, min_conf_thr=3.0, device='cuda', niter_pnp=10):
     """
     Process MV-DUSt3R output to extract point clouds, camera poses, and intrinsics.
-    Based on demo.py get_3D_model_from_scene logic.
+    Uses iterative PnP-RANSAC for camera pose estimation.
     """
     with torch.no_grad():
         _, h, w = output['pred1']['pts3d'].shape[0:3]  # [1, H, W, 3]
@@ -101,16 +59,20 @@ def process_mvdust3r_output(output, min_conf_thr=3.0, device='cuda'):
         intrinsics[1, 2] = h / 2
         intrinsics = intrinsics.to(device)
 
-        focals = torch.Tensor([focal]).reshape(1,).repeat(len(pts3d))
+        # Create per-view intrinsics
+        n_views = len(pts3d)
+        intrinsics_all = intrinsics.unsqueeze(0).repeat(n_views, 1, 1)  # [N, 3, 3]
+
+        focals = torch.Tensor([focal]).reshape(1,).repeat(n_views)
 
         # Create pixel coordinate grid for PnP
         y_coords, x_coords = torch.meshgrid(torch.arange(h), torch.arange(w), indexing='ij')
         pixel_coords = torch.stack([x_coords, y_coords], dim=-1).float().to(device)
 
-        # Estimate camera poses using PnP-RANSAC
-        # Note: Must convert to float32 for numpy/OpenCV compatibility
+        # Estimate camera poses using PnP-RANSAC with multiple iterations
         c2ws = []
-        for (pr_pt, valid) in zip(pts3d, msk):
+        for view_idx, (pr_pt, valid) in enumerate(zip(pts3d, msk)):
+            # Run PnP-RANSAC
             c2ws_i = calibrate_camera_pnpransac(
                 pr_pt.to(device).float().flatten(0, 1)[None],
                 pixel_coords.float().flatten(0, 1)[None],
@@ -126,15 +88,47 @@ def process_mvdust3r_output(output, min_conf_thr=3.0, device='cuda'):
         msk_np = to_numpy(msk)
         conf_np = to_numpy(conf)
 
-        return pts3d_np, cams2world, intrinsics.cpu(), conf_np, msk_np, focals
+        return pts3d_np, cams2world, intrinsics_all.cpu(), conf_np, msk_np, focals
+
+
+def clean_pointcloud_simple(pts3d, conf, masks, percentile=95):
+    """
+    Simple point cloud cleaning based on confidence and distance outliers.
+    """
+    cleaned_pts = []
+    cleaned_masks = []
+
+    for i, (pts, mask, c) in enumerate(zip(pts3d, masks, conf)):
+        # Start with confidence mask
+        clean_mask = mask.copy()
+
+        # Remove distance outliers (points too far from median)
+        pts_flat = pts.reshape(-1, 3)
+        valid_pts = pts_flat[mask.reshape(-1)]
+
+        if len(valid_pts) > 100:
+            # Compute distances from centroid
+            centroid = np.median(valid_pts, axis=0)
+            distances = np.linalg.norm(valid_pts - centroid, axis=1)
+
+            # Remove points beyond percentile threshold
+            dist_threshold = np.percentile(distances, percentile)
+
+            # Update mask for outliers
+            all_distances = np.linalg.norm(pts_flat - centroid, axis=1).reshape(mask.shape)
+            clean_mask = clean_mask & (all_distances <= dist_threshold)
+
+        cleaned_masks.append(clean_mask)
+
+    return cleaned_masks
 
 
 class MVDUST3RInference:
     """
     Perform multi-view 3D reconstruction using MV-DUSt3R / MV-DUSt3R+.
 
-    Takes multiple images and produces 3D point clouds, camera poses, and intrinsics.
-    Uses native multi-view inference (not pairwise).
+    Takes multiple 224x224 images and produces 3D point clouds, camera poses, and intrinsics.
+    Uses native multi-view inference for best quality.
     """
 
     @classmethod
@@ -145,7 +139,7 @@ class MVDUST3RInference:
                     "tooltip": "MVDUST3R model from LoadMVDUST3RModel node"
                 }),
                 "images": ("IMAGE", {
-                    "tooltip": "Multiple input images (batch of 2-12 views)"
+                    "tooltip": "Prepared 224x224 images (use Prepare Images node first)"
                 }),
                 "confidence_threshold": ("FLOAT", {
                     "default": 3.0,
@@ -156,12 +150,16 @@ class MVDUST3RInference:
                 }),
             },
             "optional": {
-                "target_size": ("INT", {
-                    "default": 512,
-                    "min": 224,
-                    "max": 1024,
-                    "step": 16,
-                    "tooltip": "Target size for shortest image dimension"
+                "clean_pointcloud": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Remove outlier points based on distance from median"
+                }),
+                "outlier_percentile": ("FLOAT", {
+                    "default": 95.0,
+                    "min": 80.0,
+                    "max": 100.0,
+                    "step": 1.0,
+                    "tooltip": "Percentile threshold for outlier removal (higher = keep more)"
                 }),
             }
         }
@@ -170,12 +168,22 @@ class MVDUST3RInference:
     RETURN_NAMES = ("point_clouds", "camera_poses", "intrinsics", "confidence")
     FUNCTION = "reconstruct"
     CATEGORY = "MVDUST3R"
-    DESCRIPTION = "Perform multi-view 3D reconstruction from images using MV-DUSt3R"
+    DESCRIPTION = "Multi-view 3D reconstruction from images using MV-DUSt3R"
 
-    def reconstruct(self, model, images, confidence_threshold, target_size=512):
+    def reconstruct(self, model, images, confidence_threshold,
+                    clean_pointcloud=True, outlier_percentile=95.0):
         """
         Run MV-DUSt3R inference to reconstruct 3D scene.
         """
+        # Validate input image dimensions - must be exactly 224x224
+        for i in range(images.shape[0]):
+            H, W = images[i].shape[0], images[i].shape[1]
+            if H != 224 or W != 224:
+                raise ValueError(
+                    f"meeep you're wrong - Image {i} is {W}x{H}, but MVDUST3R requires 224x224 images. "
+                    f"Use the 'Prepare Images' node first!"
+                )
+
         num_views = images.shape[0]
         variant = getattr(model, '_mvdust3r_variant', 'unknown')
 
@@ -190,13 +198,9 @@ class MVDUST3RInference:
         # ComfyUI: [B, H, W, C] in [0, 1]
         # mvdust3r expects list of dicts with 'img' key: [1, C, H, W] in [-1, 1]
         imgs = []
-        original_size = (images.shape[1], images.shape[2])
-
-        for i in range(images.shape[0]):
+        for i in range(num_views):
             img = images[i]  # [H, W, C]
             img = img.permute(2, 0, 1)  # [C, H, W]
-            img = resize_to_target(img, target_size=target_size)
-            img = crop_to_multiple_of_16(img)
             # Convert to [-1, 1]
             img = img * 2.0 - 1.0
             img = img.to(device=device, dtype=dtype)
@@ -210,7 +214,6 @@ class MVDUST3RInference:
                 'instance': str(i),
             })
 
-        print(f"[MVDUST3R] Original size: {original_size}, resized to: {imgs[0]['img'].shape}")
         print(f"[MVDUST3R] Converted {len(imgs)} images")
 
         # Reorder images for better multi-view coverage (from demo.py)
@@ -247,12 +250,17 @@ class MVDUST3RInference:
                 device=device
             )
 
+            # Optional: Clean point cloud by removing outliers
+            if clean_pointcloud:
+                print(f"[MVDUST3R] Cleaning point cloud (removing outliers beyond {outlier_percentile}th percentile)...")
+                mask = clean_pointcloud_simple(pts3d, conf, mask, percentile=outlier_percentile)
+
             # Free GPU memory
             gc.collect()
             torch.cuda.empty_cache()
 
             print(f"[MVDUST3R] Reconstruction complete")
-            print(f"[MVDUST3R] Point clouds: {len(pts3d)}")
+            print(f"[MVDUST3R] Point clouds: {len(pts3d)} views")
             print(f"[MVDUST3R] Camera poses: {camera_poses.shape}")
             print(f"[MVDUST3R] Focal length: {focals[0].item():.2f}")
 
