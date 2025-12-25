@@ -4,8 +4,9 @@ Resizes and crops images to 224x224 for MVDUST3R inference.
 """
 
 import torch
-import torch.nn.functional as F
 import math
+import numpy as np
+from PIL import Image
 
 
 class PrepareImages:
@@ -58,17 +59,12 @@ class PrepareImages:
                 new_W = 224
                 new_H = int(H * scale)
 
-            # Resize using F.interpolate (needs [B, C, H, W] format)
-            img_chw = img.permute(2, 0, 1).unsqueeze(0)  # [1, C, H, W]
-            img_resized = F.interpolate(
-                img_chw,
-                size=(new_H, new_W),
-                mode='bilinear',
-                align_corners=False
-            ).squeeze(0)  # [C, new_H, new_W]
-
-            # Convert back to [H, W, C]
-            img_resized = img_resized.permute(1, 2, 0)  # [new_H, new_W, C]
+            # Resize using PIL with Lanczos interpolation
+            img_np = (img * 255).byte().cpu().numpy()
+            pil_img = Image.fromarray(img_np)
+            pil_resized = pil_img.resize((new_W, new_H), Image.LANCZOS)
+            img_resized = torch.from_numpy(np.array(pil_resized)).float() / 255.0
+            img_resized = img_resized.to(img.device)  # [new_H, new_W, C]
 
             # 2. Calculate number of crops (minimum needed to cover, capped at 3)
             longer_dim = max(new_H, new_W)

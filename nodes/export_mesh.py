@@ -8,6 +8,7 @@ import numpy as np
 from pathlib import Path
 import folder_paths
 import os
+import pyvista as pv
 
 
 class ExportMesh:
@@ -275,6 +276,100 @@ def pts3d_to_trimesh(img, pts3d, valid=None):
     return mesh
 
 
+def face_colors_to_vertex_colors(mesh):
+    """
+    Convert face colors to vertex colors by averaging colors of adjacent faces.
+
+    Args:
+        mesh: trimesh.Trimesh with face_colors
+
+    Returns:
+        numpy array of vertex colors [N, 4] as uint8 RGBA
+    """
+    vertex_colors = np.zeros((len(mesh.vertices), 4), dtype=np.float32)
+    vertex_counts = np.zeros(len(mesh.vertices), dtype=np.float32)
+
+    face_colors = mesh.visual.face_colors  # [F, 4] RGBA
+
+    for face_idx, face in enumerate(mesh.faces):
+        color = face_colors[face_idx]
+        for vertex_idx in face:
+            vertex_colors[vertex_idx] += color
+            vertex_counts[vertex_idx] += 1
+
+    # Avoid division by zero
+    vertex_counts[vertex_counts == 0] = 1
+    vertex_colors /= vertex_counts[:, np.newaxis]
+
+    return vertex_colors.astype(np.uint8)
+
+
+def decimate_with_colors(mesh, target_faces):
+    """
+    Decimate mesh while preserving vertex colors using PyVista.
+
+    Args:
+        mesh: trimesh.Trimesh with face_colors
+        target_faces: target number of faces
+
+    Returns:
+        trimesh.Trimesh with vertex_colors
+    """
+    import trimesh
+
+    # Convert face colors to vertex colors
+    vertex_colors = face_colors_to_vertex_colors(mesh)
+
+    # Convert trimesh to pyvista
+    vertices = np.array(mesh.vertices)
+    faces = np.array(mesh.faces)
+
+    # PyVista needs faces in format [3, v0, v1, v2, 3, v0, v1, v2, ...]
+    pv_faces = np.hstack([np.full((len(faces), 1), 3), faces]).ravel()
+    pv_mesh = pv.PolyData(vertices, pv_faces)
+
+    # Add vertex colors as point data (RGB only for pyvista)
+    pv_mesh['colors'] = vertex_colors[:, :3]
+
+    # Calculate reduction ratio
+    current_faces = len(faces)
+    target_reduction = 1.0 - (target_faces / current_faces)
+    target_reduction = max(0.0, min(0.99, target_reduction))  # Clamp to valid range
+
+    # Decimate with color preservation
+    decimated = pv_mesh.decimate_pro(target_reduction, preserve_topology=True)
+
+    # If colors lost, sample from original
+    if 'colors' not in decimated.point_data:
+        print("[MVDUST3R GridMesh] Colors lost during decimation, resampling...")
+        decimated = decimated.sample(pv_mesh)
+
+    # Convert back to trimesh
+    dec_vertices = np.array(decimated.points)
+    dec_faces = decimated.faces.reshape(-1, 4)[:, 1:4]  # Remove the leading 3s
+
+    # Get vertex colors
+    if 'colors' in decimated.point_data:
+        dec_colors = decimated.point_data['colors']
+        # Convert to RGBA uint8
+        dec_colors_rgba = np.zeros((len(dec_colors), 4), dtype=np.uint8)
+        dec_colors_rgba[:, :3] = np.clip(dec_colors, 0, 255).astype(np.uint8)
+        dec_colors_rgba[:, 3] = 255
+    else:
+        # Fallback: gray
+        dec_colors_rgba = np.full((len(dec_vertices), 4), [128, 128, 128, 255], dtype=np.uint8)
+
+    # Create trimesh with vertex colors
+    result = trimesh.Trimesh(
+        vertices=dec_vertices,
+        faces=dec_faces,
+        vertex_colors=dec_colors_rgba,
+        process=False
+    )
+
+    return result
+
+
 class MVDUST3RGridMesh:
     """
     Convert MVDUST3R point clouds to mesh using grid-based triangulation.
@@ -411,10 +506,10 @@ class MVDUST3RGridMesh:
 
         print(f"[MVDUST3R GridMesh] Mesh: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
 
-        # Apply decimation if enabled and needed
+        # Apply decimation if enabled and needed (using PyVista to preserve colors)
         if decimate and target_faces < len(final_mesh.faces):
-            print(f"[MVDUST3R GridMesh] Decimating to ~{target_faces:,} faces...")
-            final_mesh = final_mesh.simplify_quadric_decimation(face_count=target_faces)
+            print(f"[MVDUST3R GridMesh] Decimating to ~{target_faces:,} faces (with color preservation)...")
+            final_mesh = decimate_with_colors(final_mesh, target_faces)
             print(f"[MVDUST3R GridMesh] After decimation: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
 
         return (final_mesh,)

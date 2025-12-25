@@ -1,75 +1,9 @@
 {
   "id": "50e686ca-1883-4962-985a-70e9441e25ff",
   "revision": 0,
-  "last_node_id": 22,
-  "last_link_id": 38,
+  "last_node_id": 29,
+  "last_link_id": 46,
   "nodes": [
-    {
-      "id": 7,
-      "type": "VHS_LoadImagesPath",
-      "pos": [
-        -178.97542317708331,
-        -61.013861762152736
-      ],
-      "size": [
-        252.58984375,
-        597.1595934139784
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "meta_batch",
-          "shape": 7,
-          "type": "VHS_BatchManager",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            12
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        },
-        {
-          "name": "frame_count",
-          "type": "INT",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-videohelpersuite",
-        "ver": "3234937ff5f3ca19068aaba5042771514de2429d",
-        "Node name for S&R": "VHS_LoadImagesPath",
-        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
-      },
-      "widgets_values": {
-        "directory": "input/mv/",
-        "image_load_cap": 0,
-        "skip_first_images": 0,
-        "select_every_nth": 1,
-        "videopreview": {
-          "hidden": false,
-          "paused": false,
-          "params": {
-            "image_load_cap": 0,
-            "skip_first_images": 0,
-            "select_every_nth": 1,
-            "filename": "input/mv/",
-            "type": "path",
-            "format": "folder"
-          }
-        }
-      }
-    },
     {
       "id": 8,
       "type": "LoadMVDUST3RModel",
@@ -82,7 +16,7 @@
         106
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -106,50 +40,88 @@
       ]
     },
     {
-      "id": 4,
-      "type": "ExportPointCloud",
+      "id": 26,
+      "type": "BlurDetection",
       "pos": [
-        888.898642674425,
-        30.697663062879826
+        -125.67191083686689,
+        -384.63136025501643
       ],
       "size": [
-        315,
-        200
+        296.205078125,
+        142
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
-          "name": "point_clouds",
-          "type": "POINT_CLOUDS",
-          "link": 31
-        },
-        {
-          "name": "confidence",
-          "type": "CONFIDENCE",
-          "link": 32
+          "name": "images",
+          "type": "IMAGE",
+          "link": 42
         }
       ],
       "outputs": [
         {
-          "name": "filepath",
-          "type": "STRING",
-          "slot_index": 0,
+          "name": "sharp_images",
+          "type": "IMAGE",
+          "links": [
+            45
+          ]
+        },
+        {
+          "name": "blurry_images",
+          "type": "IMAGE",
           "links": []
+        },
+        {
+          "name": "blur_scores",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "sharp_indices",
+          "type": "STRING",
+          "links": null
         }
       ],
       "properties": {
         "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
-        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
-        "Node name for S&R": "ExportPointCloud"
+        "ver": "403e1e298614a1a4b1e603529905bbb2809822ae",
+        "Node name for S&R": "BlurDetection"
       },
       "widgets_values": [
-        "pointcloud",
-        "ply",
-        true,
-        1
+        100,
+        true
       ]
+    },
+    {
+      "id": 24,
+      "type": "PreviewImage",
+      "pos": [
+        -30.934942913948227,
+        48.36206680276226
+      ],
+      "size": [
+        140,
+        246
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 40
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.6.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
     },
     {
       "id": 20,
@@ -163,7 +135,7 @@
         166
       ],
       "flags": {},
-      "order": 3,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -182,7 +154,6 @@
           "name": "point_clouds",
           "type": "POINT_CLOUDS",
           "links": [
-            31,
             35
           ]
         },
@@ -200,7 +171,6 @@
           "name": "confidence",
           "type": "CONFIDENCE",
           "links": [
-            32,
             36
           ]
         }
@@ -217,56 +187,103 @@
       ]
     },
     {
-      "id": 15,
-      "type": "PrepareImages",
+      "id": 23,
+      "type": "VHS_LoadVideo",
       "pos": [
-        161.21256365353617,
-        -138.60594410087265
+        -389.27270109198093,
+        -149.03625574176527
       ],
       "size": [
-        184.095703125,
-        26
+        260.4306640625,
+        459.24224853515625
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 12
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
         }
       ],
       "outputs": [
         {
-          "name": "prepared_images",
+          "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            30,
-            37
+            40,
+            42
           ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null
         }
       ],
       "properties": {
-        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
-        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
-        "Node name for S&R": "PrepareImages"
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "3234937ff5f3ca19068aaba5042771514de2429d",
+        "Node name for S&R": "VHS_LoadVideo",
+        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
       },
-      "widgets_values": []
+      "widgets_values": {
+        "video": "brandwood_interior.mp4",
+        "force_rate": 0,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 5,
+        "skip_first_frames": 0,
+        "select_every_nth": 100,
+        "format": "AnimateDiff",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "brandwood_interior.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "force_rate": 0,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 5,
+            "skip_first_frames": 0,
+            "select_every_nth": 100
+          }
+        }
+      }
     },
     {
       "id": 22,
       "type": "MVDUST3RGridMesh",
       "pos": [
-        894.4033281002514,
-        389.95631172950453
+        890.8778523924464,
+        320.63170849594235
       ],
       "size": [
         286.4609375,
         170
       ],
       "flags": {},
-      "order": 5,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -302,22 +319,23 @@
       "widgets_values": [
         3,
         true,
-        200000
+        false,
+        501000
       ]
     },
     {
       "id": 21,
       "type": "GeomPackPreviewMeshVTK",
       "pos": [
-        1435.6705562903544,
-        118.28465916874146
+        1295.9437147866815,
+        118.51871564726795
       ],
       "size": [
         512,
         722
       ],
       "flags": {},
-      "order": 6,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -337,23 +355,114 @@
       "properties": {
         "cnr_id": "comfyui-geometrypack",
         "ver": "3a9f0d8bd0f057cb1fd7d7f022765c6d9c86aec6",
-        "Node name for S&R": "GeomPackPreviewMeshVTK"
+        "Node name for S&R": "GeomPackPreviewMeshVTK",
+        "aux_id": "PozzettiAndrea/ComfyUI-GeometryPack"
       },
       "widgets_values": [
         "fields",
         ""
       ]
+    },
+    {
+      "id": 29,
+      "type": "PreviewImage",
+      "pos": [
+        1069.1300189253088,
+        129.2177721089454
+      ],
+      "size": [
+        140,
+        246
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 46
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.6.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "PrepareImages",
+      "pos": [
+        161.21256365353617,
+        -138.60594410087265
+      ],
+      "size": [
+        184.095703125,
+        26
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prepared_images",
+          "type": "IMAGE",
+          "links": [
+            30,
+            37,
+            41,
+            46
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "PrepareImages"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 25,
+      "type": "PreviewImage",
+      "pos": [
+        175.08914743648245,
+        51.98711246259114
+      ],
+      "size": [
+        140,
+        246
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 41
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.6.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
     }
   ],
   "links": [
-    [
-      12,
-      7,
-      0,
-      15,
-      0,
-      "IMAGE"
-    ],
     [
       29,
       8,
@@ -369,22 +478,6 @@
       20,
       1,
       "IMAGE"
-    ],
-    [
-      31,
-      20,
-      0,
-      4,
-      0,
-      "POINT_CLOUDS"
-    ],
-    [
-      32,
-      20,
-      3,
-      4,
-      1,
-      "CONFIDENCE"
     ],
     [
       35,
@@ -417,22 +510,62 @@
       21,
       0,
       "TRIMESH"
+    ],
+    [
+      40,
+      23,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      15,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      42,
+      23,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      26,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      46,
+      15,
+      0,
+      29,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5310439743098958,
+      "scale": 2.285599551712907,
       "offset": [
-        516.5008855968587,
-        686.6964985447199
+        46.93143084933813,
+        27.569766228137404
       ]
     },
+    "frontendVersion": "1.35.9",
     "workflowRendererVersion": "LG",
     "workflow_name": "MVDUST3R Basic Reconstruction",
     "workflow_description": "Basic multi-view 3D reconstruction workflow using MVDUST3R. Load multiple view images, run reconstruction, and export both point cloud and mesh.",
-    "frontendVersion": "1.34.9",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": true,
