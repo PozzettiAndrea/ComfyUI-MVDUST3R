@@ -272,127 +272,6 @@
       }
     },
     {
-      "id": 22,
-      "type": "MVDUST3RGridMesh",
-      "pos": [
-        890.8778523924464,
-        320.63170849594235
-      ],
-      "size": [
-        286.4609375,
-        170
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "point_clouds",
-          "type": "POINT_CLOUDS",
-          "link": 35
-        },
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 37
-        },
-        {
-          "name": "confidence",
-          "type": "CONFIDENCE",
-          "link": 36
-        }
-      ],
-      "outputs": [
-        {
-          "name": "mesh",
-          "type": "TRIMESH",
-          "links": [
-            38
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
-        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
-        "Node name for S&R": "MVDUST3RGridMesh"
-      },
-      "widgets_values": [
-        3,
-        true,
-        false,
-        501000
-      ]
-    },
-    {
-      "id": 21,
-      "type": "GeomPackPreviewMeshVTK",
-      "pos": [
-        1295.9437147866815,
-        118.51871564726795
-      ],
-      "size": [
-        512,
-        722
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "trimesh",
-          "shape": 7,
-          "type": "TRIMESH",
-          "link": 38
-        },
-        {
-          "name": "voxelgrid",
-          "shape": 7,
-          "type": "VOXELGRID",
-          "link": null
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfyui-geometrypack",
-        "ver": "3a9f0d8bd0f057cb1fd7d7f022765c6d9c86aec6",
-        "Node name for S&R": "GeomPackPreviewMeshVTK",
-        "aux_id": "PozzettiAndrea/ComfyUI-GeometryPack"
-      },
-      "widgets_values": [
-        "fields",
-        ""
-      ]
-    },
-    {
-      "id": 29,
-      "type": "PreviewImage",
-      "pos": [
-        1069.1300189253088,
-        129.2177721089454
-      ],
-      "size": [
-        140,
-        246
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 46
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.6.0",
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": []
-    },
-    {
       "id": 15,
       "type": "PrepareImages",
       "pos": [
@@ -460,6 +339,127 @@
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": []
+    },
+    {
+      "id": 29,
+      "type": "PreviewImage",
+      "pos": [
+        1048.672612060756,
+        -117.2684579324045
+      ],
+      "size": [
+        140,
+        246
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 46
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.6.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 22,
+      "type": "MVDUST3RGridMesh",
+      "pos": [
+        890.8778523924464,
+        320.63170849594235
+      ],
+      "size": [
+        286.4609375,
+        170
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "point_clouds",
+          "type": "POINT_CLOUDS",
+          "link": 35
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        },
+        {
+          "name": "confidence",
+          "type": "CONFIDENCE",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mesh",
+          "type": "TRIMESH",
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "PozzettiAndrea/ComfyUI-MVDUST3R",
+        "ver": "237c3dbdc1af8c97922af294816eff429be1630f",
+        "Node name for S&R": "MVDUST3RGridMesh"
+      },
+      "widgets_values": [
+        3,
+        true,
+        false,
+        501000
+      ]
+    },
+    {
+      "id": 21,
+      "type": "GeomPackPreviewMeshVTK",
+      "pos": [
+        1233.734609724365,
+        345.2548462648737
+      ],
+      "size": [
+        512,
+        722
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "trimesh",
+          "shape": 7,
+          "type": "TRIMESH",
+          "link": 38
+        },
+        {
+          "name": "voxelgrid",
+          "shape": 7,
+          "type": "VOXELGRID",
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfyui-geometrypack",
+        "ver": "3a9f0d8bd0f057cb1fd7d7f022765c6d9c86aec6",
+        "Node name for S&R": "GeomPackPreviewMeshVTK",
+        "aux_id": "PozzettiAndrea/ComfyUI-GeometryPack"
+      },
+      "widgets_values": [
+        "texture",
+        ""
+      ]
     }
   ],
   "links": [
@@ -556,10 +556,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 2.285599551712907,
+      "scale": 0.6115909044841487,
       "offset": [
-        46.93143084933813,
-        27.569766228137404
+        268.35474986077287,
+        242.19311045152634
       ]
     },
     "frontendVersion": "1.35.9",
