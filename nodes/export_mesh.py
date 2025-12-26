@@ -301,6 +301,9 @@ def face_colors_to_vertex_colors(mesh):
     vertex_counts[vertex_counts == 0] = 1
     vertex_colors /= vertex_counts[:, np.newaxis]
 
+    # Force alpha to 255 (fully opaque)
+    vertex_colors[:, 3] = 255
+
     return vertex_colors.astype(np.uint8)
 
 
@@ -309,7 +312,7 @@ def decimate_with_colors(mesh, target_faces):
     Decimate mesh while preserving vertex colors using PyVista.
 
     Args:
-        mesh: trimesh.Trimesh with face_colors
+        mesh: trimesh.Trimesh with vertex_colors
         target_faces: target number of faces
 
     Returns:
@@ -317,8 +320,8 @@ def decimate_with_colors(mesh, target_faces):
     """
     import trimesh
 
-    # Convert face colors to vertex colors
-    vertex_colors = face_colors_to_vertex_colors(mesh)
+    # Get vertex colors
+    vertex_colors = mesh.visual.vertex_colors
 
     # Convert trimesh to pyvista
     vertices = np.array(mesh.vertices)
@@ -506,9 +509,15 @@ class MVDUST3RGridMesh:
 
         print(f"[MVDUST3R GridMesh] Mesh: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
 
-        # Apply decimation if enabled and needed (using PyVista to preserve colors)
+        # Convert face colors to vertex colors (required for decimation and consistent output)
+        if hasattr(final_mesh.visual, 'face_colors') and final_mesh.visual.kind == 'face':
+            print(f"[MVDUST3R GridMesh] Converting face colors to vertex colors...")
+            vertex_colors = face_colors_to_vertex_colors(final_mesh)
+            final_mesh.visual.vertex_colors = vertex_colors
+
+        # Apply decimation if enabled and needed
         if decimate and target_faces < len(final_mesh.faces):
-            print(f"[MVDUST3R GridMesh] Decimating to ~{target_faces:,} faces (with color preservation)...")
+            print(f"[MVDUST3R GridMesh] Decimating to ~{target_faces:,} faces...")
             final_mesh = decimate_with_colors(final_mesh, target_faces)
             print(f"[MVDUST3R GridMesh] After decimation: {len(final_mesh.vertices):,} verts, {len(final_mesh.faces):,} faces")
 
