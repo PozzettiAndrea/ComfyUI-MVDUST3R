@@ -42,9 +42,8 @@ Homepage = "https://github.com/yourusername/ComfyUI-MVDUST3R"
 Repository = "https://github.com/yourusername/ComfyUI-MVDUST3R"
 Issues = "https://github.com/yourusername/ComfyUI-MVDUST3R/issues"
 
-[build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["comfyui_mvdust3r", "comfyui_mvdust3r.nodes", "comfyui_mvdust3r.vendor"]
+# ComfyUI Registry configuration
+[tool.comfy]
+PublisherId = "pznodes"
+DisplayName = "SAM3DObjects"
+Icon = ""

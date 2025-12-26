@@ -51,6 +51,9 @@ output/
 # Logs
 *.log
 
+# Jupyter
+.ipynb_checkpoints/
+
 # ComfyUI specific
 web/extensions/
 custom_nodes/
