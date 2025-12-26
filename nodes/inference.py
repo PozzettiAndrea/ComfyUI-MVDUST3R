@@ -7,9 +7,13 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import gc
+import os
+import uuid
 from copy import deepcopy
 from pathlib import Path
 import sys
+from plyfile import PlyData, PlyElement
+import folder_paths
 
 # Import from vendored mvdust3r
 current_dir = Path(__file__).parent.parent
@@ -123,6 +127,130 @@ def clean_pointcloud_simple(pts3d, conf, masks, percentile=95):
     return cleaned_masks
 
 
+def extract_gaussians_from_output(output):
+    """
+    Extract 3D Gaussian Splatting parameters from MVDUST3R output.
+    Returns dict with xyz, rgb, opacity, scale, rotation for all views.
+    """
+    # Extract from pred1 (first view)
+    gaussians = {
+        'xyz': [output['pred1']['pts3d'][0]],  # [H, W, 3]
+        'rgb': [output['pred1']['rgb'][0]],     # [H, W, 3]
+        'opacity': [output['pred1']['opacity'][0]],  # [H, W, 1]
+        'scale': [output['pred1']['scale'][0]],      # [H, W, 3]
+        'rotation': [output['pred1']['rotation'][0]], # [H, W, 4]
+    }
+
+    # Extract from pred2s (other views)
+    for pred2 in output['pred2s']:
+        gaussians['xyz'].append(pred2['pts3d_in_other_view'][0])
+        gaussians['rgb'].append(pred2['rgb'][0])
+        gaussians['opacity'].append(pred2['opacity'][0])
+        gaussians['scale'].append(pred2['scale'][0])
+        gaussians['rotation'].append(pred2['rotation'][0])
+
+    return gaussians
+
+
+def save_gaussians_ply(gaussians, masks, output_path):
+    """
+    Save 3D Gaussians to PLY file in standard 3DGS format.
+
+    Args:
+        gaussians: dict with xyz, rgb, opacity, scale, rotation (list of tensors per view)
+        masks: list of validity masks per view
+        output_path: path to save .ply file
+    """
+    all_xyz = []
+    all_rgb = []
+    all_opacity = []
+    all_scale = []
+    all_rotation = []
+
+    for i, mask in enumerate(masks):
+        # Get data for this view
+        xyz = to_numpy(gaussians['xyz'][i])  # [H, W, 3]
+        rgb = to_numpy(gaussians['rgb'][i])  # [H, W, 3]
+        opacity = to_numpy(gaussians['opacity'][i])  # [H, W, 1]
+        scale = to_numpy(gaussians['scale'][i])  # [H, W, 3]
+        rotation = to_numpy(gaussians['rotation'][i])  # [H, W, 4]
+
+        # Flatten and apply mask
+        mask_flat = mask.reshape(-1)
+        xyz_flat = xyz.reshape(-1, 3)[mask_flat]
+        rgb_flat = rgb.reshape(-1, 3)[mask_flat]
+        opacity_flat = opacity.reshape(-1, 1)[mask_flat]
+        scale_flat = scale.reshape(-1, 3)[mask_flat]
+        rotation_flat = rotation.reshape(-1, 4)[mask_flat]
+
+        all_xyz.append(xyz_flat)
+        all_rgb.append(rgb_flat)
+        all_opacity.append(opacity_flat)
+        all_scale.append(scale_flat)
+        all_rotation.append(rotation_flat)
+
+    # Concatenate all views
+    xyz = np.concatenate(all_xyz, axis=0)
+    rgb = np.concatenate(all_rgb, axis=0)
+    opacity = np.concatenate(all_opacity, axis=0)
+    scale = np.concatenate(all_scale, axis=0)
+    rotation = np.concatenate(all_rotation, axis=0)
+
+    num_points = xyz.shape[0]
+    print(f"[MVDUST3R] Saving {num_points:,} gaussians to {output_path}")
+
+    # Normalize RGB from [-1, 1] to [0, 1] if needed
+    if rgb.min() < 0:
+        rgb = (rgb + 1.0) / 2.0
+    rgb = np.clip(rgb, 0, 1)
+
+    # Convert opacity to logit space (inverse sigmoid) for 3DGS format
+    opacity_clamped = np.clip(opacity, 1e-6, 1 - 1e-6)
+    opacity_logit = np.log(opacity_clamped / (1 - opacity_clamped))
+
+    # Convert scale to log space for 3DGS format
+    scale_log = np.log(np.clip(scale, 1e-8, None))
+
+    # Create structured array for PLY
+    # Standard 3DGS format: x,y,z, nx,ny,nz, f_dc_0/1/2, opacity, scale_0/1/2, rot_0/1/2/3
+    dtype = [
+        ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+        ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
+        ('f_dc_0', 'f4'), ('f_dc_1', 'f4'), ('f_dc_2', 'f4'),
+        ('opacity', 'f4'),
+        ('scale_0', 'f4'), ('scale_1', 'f4'), ('scale_2', 'f4'),
+        ('rot_0', 'f4'), ('rot_1', 'f4'), ('rot_2', 'f4'), ('rot_3', 'f4'),
+    ]
+
+    vertices = np.zeros(num_points, dtype=dtype)
+    vertices['x'] = xyz[:, 0]
+    vertices['y'] = xyz[:, 1]
+    vertices['z'] = xyz[:, 2]
+    vertices['nx'] = 0
+    vertices['ny'] = 0
+    vertices['nz'] = 0
+    # SH DC coefficients (convert RGB to SH space: divide by SH_C0 = 0.28209479177387814)
+    SH_C0 = 0.28209479177387814
+    vertices['f_dc_0'] = (rgb[:, 0] - 0.5) / SH_C0
+    vertices['f_dc_1'] = (rgb[:, 1] - 0.5) / SH_C0
+    vertices['f_dc_2'] = (rgb[:, 2] - 0.5) / SH_C0
+    vertices['opacity'] = opacity_logit.squeeze()
+    vertices['scale_0'] = scale_log[:, 0]
+    vertices['scale_1'] = scale_log[:, 1]
+    vertices['scale_2'] = scale_log[:, 2]
+    # Rotation quaternion (wxyz format for 3DGS)
+    vertices['rot_0'] = rotation[:, 3]  # w
+    vertices['rot_1'] = rotation[:, 0]  # x
+    vertices['rot_2'] = rotation[:, 1]  # y
+    vertices['rot_3'] = rotation[:, 2]  # z
+
+    # Create PLY element and save
+    el = PlyElement.describe(vertices, 'vertex')
+    PlyData([el]).write(output_path)
+
+    return num_points
+
+
 class MVDUST3RInference:
     """
     Perform multi-view 3D reconstruction using MV-DUSt3R / MV-DUSt3R+.
@@ -161,17 +289,21 @@ class MVDUST3RInference:
                     "step": 1.0,
                     "tooltip": "Percentile threshold for outlier removal (higher = keep more)"
                 }),
+                "export_gaussians": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Export 3D Gaussian Splatting parameters to PLY file"
+                }),
             }
         }
 
-    RETURN_TYPES = ("POINT_CLOUDS", "CAMERA_POSES", "INTRINSICS", "CONFIDENCE")
-    RETURN_NAMES = ("point_clouds", "camera_poses", "intrinsics", "confidence")
+    RETURN_TYPES = ("POINT_CLOUDS", "CAMERA_POSES", "INTRINSICS", "CONFIDENCE", "STRING")
+    RETURN_NAMES = ("point_clouds", "camera_poses", "intrinsics", "confidence", "gaussian_ply")
     FUNCTION = "reconstruct"
     CATEGORY = "MVDUST3R"
     DESCRIPTION = "Multi-view 3D reconstruction from images using MV-DUSt3R"
 
     def reconstruct(self, model, images, confidence_threshold,
-                    clean_pointcloud=True, outlier_percentile=95.0):
+                    clean_pointcloud=True, outlier_percentile=95.0, export_gaussians=True):
         """
         Run MV-DUSt3R inference to reconstruct 3D scene.
         """
@@ -236,12 +368,18 @@ class MVDUST3RInference:
             with torch.no_grad():
                 output = inference_mv(imgs, model, device, verbose=True)
 
-            # Add RGB from original images to output
-            output['pred1']['rgb'] = imgs[0]['img'].permute(0, 2, 3, 1)  # [1, H, W, 3]
-            for x, img in zip(output['pred2s'], imgs[1:]):
-                x['rgb'] = img['img'].permute(0, 2, 3, 1)
+            # Check if model has gaussian outputs
+            has_gaussians = 'opacity' in output['pred1'] and export_gaussians
+
+            # Add RGB from original images to output (for mesh coloring)
+            # Only needed if model doesn't output RGB (sh_degree=0 outputs rgb directly)
+            if 'rgb' not in output['pred1']:
+                output['pred1']['rgb'] = imgs[0]['img'].permute(0, 2, 3, 1)  # [1, H, W, 3]
+                for x, img in zip(output['pred2s'], imgs[1:]):
+                    x['rgb'] = img['img'].permute(0, 2, 3, 1)
 
             print(f"[MVDUST3R] Inference complete, processing output...")
+            print(f"[MVDUST3R] Gaussian output available: {has_gaussians}")
 
             # Process output to get camera poses and intrinsics
             pts3d, camera_poses, intrinsics, conf, mask, focals = process_mvdust3r_output(
@@ -264,6 +402,26 @@ class MVDUST3RInference:
             print(f"[MVDUST3R] Camera poses: {camera_poses.shape}")
             print(f"[MVDUST3R] Focal length: {focals[0].item():.2f}")
 
+            # Export gaussians to PLY if available
+            gaussian_ply_path = ""
+            if has_gaussians:
+                try:
+                    # Extract gaussian parameters
+                    gaussians = extract_gaussians_from_output(output)
+
+                    # Generate output path
+                    output_dir = folder_paths.get_output_directory()
+                    filename = f"gaussians_{uuid.uuid4().hex[:8]}.ply"
+                    gaussian_ply_path = os.path.join(output_dir, filename)
+
+                    # Save to PLY
+                    num_gaussians = save_gaussians_ply(gaussians, mask, gaussian_ply_path)
+                    print(f"[MVDUST3R] Exported {num_gaussians:,} gaussians to: {gaussian_ply_path}")
+                except Exception as e:
+                    print(f"[MVDUST3R] Warning: Failed to export gaussians: {e}")
+                    import traceback
+                    traceback.print_exc()
+
             # Package output
             output_data = {
                 'pts_3d': pts3d,
@@ -274,7 +432,7 @@ class MVDUST3RInference:
                 'conf_threshold': confidence_threshold
             }
 
-            return (output_data, camera_poses, intrinsics, conf)
+            return (output_data, camera_poses, intrinsics, conf, gaussian_ply_path)
 
         except Exception as e:
             print(f"[MVDUST3R] Error during inference: {str(e)}")

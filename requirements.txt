@@ -26,6 +26,7 @@ torchmetrics
 
 # 3D Gaussian Splatting
 gsplat>=1.4.0
+plyfile
 
 # Utilities
 tqdm
