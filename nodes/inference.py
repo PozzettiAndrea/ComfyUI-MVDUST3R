@@ -238,11 +238,12 @@ def save_gaussians_ply(gaussians, masks, output_path):
     vertices['scale_0'] = scale_log[:, 0]
     vertices['scale_1'] = scale_log[:, 1]
     vertices['scale_2'] = scale_log[:, 2]
-    # Rotation quaternion (wxyz format for 3DGS)
-    vertices['rot_0'] = rotation[:, 3]  # w
-    vertices['rot_1'] = rotation[:, 0]  # x
-    vertices['rot_2'] = rotation[:, 1]  # y
-    vertices['rot_3'] = rotation[:, 2]  # z
+    # Rotation quaternion - model outputs wxyz format (same as gsplat Python),
+    # PLY format also expects wxyz, so no reordering needed
+    vertices['rot_0'] = rotation[:, 0]  # w
+    vertices['rot_1'] = rotation[:, 1]  # x
+    vertices['rot_2'] = rotation[:, 2]  # y
+    vertices['rot_3'] = rotation[:, 3]  # z
 
     # Create PLY element and save
     el = PlyElement.describe(vertices, 'vertex')
