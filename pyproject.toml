@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-mvdust3r"
 version = "0.1.0"
-description = "ComfyUI nodes for MVDUST3R multi-view 3D reconstruction"
+description = "THIS NODE IS WIP. ComfyUI nodes for MVDUST3R multi-view 3D reconstruction"
 authors = [{name = "ComfyUI-MVDUST3R Contributors"}]
 readme = "README.md"
 requires-python = ">=3.10"

@@ -193,6 +193,12 @@ Conversion happens automatically inside the inference node.
 - Verify HuggingFace Hub access
 - Manually download to `ComfyUI/models/mvdust3r/`
 
+## Community
+
+Questions or feature requests? Open a [Discussion](https://github.com/PozzettiAndrea/ComfyUI-MVDUST3R/discussions) on GitHub.
+
+Join the [Comfy3D Discord](https://discord.gg/PN743tE5) for help, updates, and chat about 3D workflows in ComfyUI.
+
 ## Credits
 
 - **MVDUST3R**: [Original Paper](https://arxiv.org/abs/2412.06974) by Meta/Facebook Research
