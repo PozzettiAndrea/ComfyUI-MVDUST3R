@@ -8,24 +8,7 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["comfyui", "3d-reconstruction", "multi-view", "point-cloud", "mesh"]
 
-dependencies = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
-    "numpy>=1.26.0",
-    "scipy",
-    "trimesh",
-    "open3d",
-    "roma",
-    "einops",
-    "opencv-python",
-    "imageio[ffmpeg]",
-    "huggingface-hub[torch]",
-    "timm",
-    "scikit-learn",
-    "gsplat>=1.4.0",
-    "tqdm",
-    "plyfile",
-]
+dynamic = ["dependencies"]
 
 [project.urls]
 Homepage = "https://github.com/PozzettiAndrea/ComfyUI-MVDUST3R"
@@ -33,6 +16,13 @@ Repository = "https://github.com/PozzettiAndrea/ComfyUI-MVDUST3R"
 Issues = "https://github.com/PozzettiAndrea/ComfyUI-MVDUST3R/issues"
 
 # ComfyUI Registry configuration
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
 [tool.comfy]
 PublisherId = "pznodes"
 DisplayName = "MVDUST3R"
